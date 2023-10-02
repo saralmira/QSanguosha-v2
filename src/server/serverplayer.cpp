@@ -682,16 +682,7 @@ bool ServerPlayer::pindian(ServerPlayer *target, const QString &reason, const Ca
 
 void ServerPlayer::turnOver()
 {
-    setFaceUp(!faceUp());
-    room->broadcastProperty(this, "faceup");
-
-    LogMessage log;
-    log.type = "#TurnOver";
-    log.from = this;
-    log.arg = faceUp() ? "face_up" : "face_down";
-    room->sendLog(log);
-
-    room->getThread()->trigger(TurnedOver, room, this);
+    room->makePlayerTurnOver(this);
 }
 
 bool ServerPlayer::changePhase(Player::Phase from, Player::Phase to)
@@ -869,6 +860,33 @@ void ServerPlayer::loseAllMarks(const QString &mark_name)
     loseMark(mark_name, getMark(mark_name));
 }
 
+void ServerPlayer::setMaxStage(const Skill *skill, int maxstage)
+{
+    setMaxStage(skill->objectName(), maxstage);
+}
+
+void ServerPlayer::setMaxStage(const QString &skill_name, int maxstage)
+{
+    room->setPlayerProperty(this, QString("%1_max_stage").arg(skill_name).toLatin1(), maxstage);
+}
+
+void ServerPlayer::switchStage(const Skill *skill, int specific_stage)
+{
+    switchStage(skill->objectName(), specific_stage);
+}
+
+void ServerPlayer::switchStage(const QString &skill_name, int specific_stage)
+{
+    int maxstage = property(QString("%1_max_stage").arg(skill_name).toLatin1()).toInt();
+    QString mark_name = QString("@skillstage_%1").arg(skill_name);
+    if (specific_stage < 0) {
+        int currentstage = getMark(mark_name) + 1;
+        room->setPlayerMark(this, mark_name, currentstage > maxstage ? 1 : currentstage);
+    } else {
+        room->setPlayerMark(this, mark_name, qMin(specific_stage, maxstage));
+    }
+}
+
 void ServerPlayer::addSkill(const QString &skill_name)
 {
     Player::addSkill(skill_name);
@@ -960,15 +978,20 @@ ServerPlayer *ServerPlayer::getNextAlive(int n) const
 int ServerPlayer::getGeneralMaxHp() const
 {
     int max_hp = 0;
+    //bool addmaxhp = true;
 
-    if (getGeneral2() == NULL)
+    if (getGeneral2() == NULL) {
         max_hp = getGeneral()->getMaxHp();
+        //addmaxhp = !getGeneral()->hasSkill("yxskuangchan");
+    }
     else {
         int first = getGeneral()->getMaxHp();
         int second = getGeneral2()->getMaxHp();
+        //addmaxhp = !getGeneral()->hasSkill("yxskuangchan") && !getGeneral2()->hasSkill("yxskuangchan");
 
         int plan = Config.MaxHpScheme;
-        if (Config.GameMode.contains("_mini_") || Config.GameMode == "custom_scenario") plan = 1;
+        if (Config.GameMode.contains("_mini_") || Config.GameMode == "custom_scenario" ||
+           ((Config.GameMode == "04_1v3" || Config.GameMode == "05_wz") && isLord())) plan = 1;
 
         switch (plan) {
         case 3: max_hp = (first + second) / 2; break;
@@ -981,7 +1004,7 @@ int ServerPlayer::getGeneralMaxHp() const
         max_hp = qMax(max_hp, 1);
     }
 
-    if (room->hasWelfare(this))
+    if (room->hasWelfare(this))// && addmaxhp)
         max_hp++;
 
     return max_hp;
@@ -990,6 +1013,23 @@ int ServerPlayer::getGeneralMaxHp() const
 QString ServerPlayer::getGameMode() const
 {
     return room->getMode();
+}
+
+int _getGeneralHp(const ServerPlayer *p, int initial_hp)
+{
+    return initial_hp < 1 ? p->getGeneralMaxHp() : initial_hp;
+}
+
+int ServerPlayer::getGeneralHp() const
+{
+    if (getGeneral2() == NULL) {
+        return _getGeneralHp(this, getGeneral()->getInitialHp());
+    }
+    else {
+        int first = _getGeneralHp(this, getGeneral()->getInitialHp());
+        int second = _getGeneralHp(this, getGeneral2()->getInitialHp());
+        return qMin(first, second);
+    }
 }
 
 QString ServerPlayer::getIp() const

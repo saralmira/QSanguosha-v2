@@ -3,6 +3,7 @@
 
 #include "general.h"
 #include "card.h"
+#include "util.h"
 //#include "wrapped-card.h"
 
 class EquipCard;
@@ -13,6 +14,8 @@ class DelayedTrick;
 class DistanceSkill;
 class TriggerSkill;
 class WrappedCard;
+class ViewAsSkill;
+class ZeroCardViewAsSkill;
 
 class Player : public QObject
 {
@@ -50,7 +53,7 @@ public:
     {
         PlaceHand, PlaceEquip, PlaceDelayedTrick, PlaceJudge,
         PlaceSpecial, DiscardPile, DrawPile, PlaceTable, PlaceUnknown,
-        PlaceWuGu
+        PlaceWuGu, DrawPileBottom
     };
     enum Role
     {
@@ -111,6 +114,7 @@ public:
 
     int getAttackRange(bool include_weapon = true) const;
     bool inMyAttackRange(const Player *other, int distance_fix = 0) const;
+    bool isInfinityAttackRange() const;
 
     bool isAlive() const;
     bool isDead() const;
@@ -150,6 +154,8 @@ public:
     bool hasLordSkill(const QString &skill_name, bool include_lose = false) const;
     bool hasLordSkill(const Skill *skill, bool include_lose = false) const;
     virtual QString getGameMode() const = 0;
+
+    bool hasHandCard(const QString &pattern) const;
 
     void setEquip(WrappedCard *equip);
     void removeEquip(WrappedCard *equip);
@@ -197,8 +203,11 @@ public:
 
     bool canSlash(const Player *other, const Card *slash, bool distance_limit = true, int rangefix = 0, const QList<const Player *> &others = QList<const Player *>()) const;
     bool canSlash(const Player *other, bool distance_limit = true, int rangefix = 0, const QList<const Player *> &others = QList<const Player *>()) const;
-    int getCardCount(bool include_equip = true, bool include_judging = false) const;
+    int getCardCount(bool include_equip = true, bool include_judging = false, bool include_hand = true) const;
+    int getCardCount(const QString &flags) const;
+    QList<const Card *> getHandlingMethodCards(const QString &flags, Card::HandlingMethod method = Card::MethodDiscard) const;
 
+    bool hasPile(const QString &pile_name) const;
     QList<int> getPile(const QString &pile_name) const;
     QStringList getPileNames() const;
     QString getPileName(int card_id) const;
@@ -211,6 +220,7 @@ public:
     bool hasUsed(const QString &card_class) const;
     int usedTimes(const QString &card_class) const;
     int getSlashCount() const;
+    int getHistory(const QString &name) const;
 
     bool hasEquipSkill(const QString &skill_name) const;
     QSet<const TriggerSkill *> getTriggerSkills() const;
@@ -220,6 +230,10 @@ public:
     QList<const Skill *> getVisibleSkillList(bool include_equip = false) const;
     QStringList getAcquiredSkills() const;
     QString getSkillDescription() const;
+    const Skill *getSkill(const QString &skill_name) const;
+    const ViewAsSkill *getViewAsSkill(const QString &skill_name) const;
+    const ZeroCardViewAsSkill *getZeroCardViewAsSkill(const QString &skill_name) const;
+    bool isSkillEnabledAtPlay(const char *skill_name) const;
 
     virtual bool isProhibited(const Player *to, const Card *card, const QList<const Player *> &others = QList<const Player *>()) const;
     bool canSlashWithoutCrossbow(const Card *slash = NULL) const;
@@ -251,6 +265,23 @@ public:
     QVariantMap tag;
 
     static bool isNostalGeneral(const Player *p, const QString &general_name);
+
+    // custom
+    bool isDying() const;
+    bool canSlashSomeone() const;
+
+    // for trans skill
+    // stage control, initial stage is 1
+    inline int getStage(const QString &skill_name) const { return getMark(QString("@skillstage_%1").arg(skill_name)); }
+
+    // boss mode
+    inline QList<int> getWZStageList() const { return String2IntList(property("wzboss_stage").toString()); }
+    inline int getWZStage() const
+    {
+        QList<int> slist = getWZStageList(); int chp = getHp();
+        for (int i = slist.length() - 1; i >= 0; --i) { if (chp <= slist[i]) { return i + 1; } }
+        return 0;
+    }
 
 protected:
     QMap<QString, int> marks;

@@ -1,4 +1,6 @@
 #include "sprite.h"
+#include <QPropertyAnimation>
+#include <QPainter>
 
 EffectAnimation::EffectAnimation()
     : QObject()
@@ -36,6 +38,22 @@ void EffectAnimation::emphasize(QGraphicsItem *map, bool stay)
     }
 
     EmphasizeEffect *emphasize = new EmphasizeEffect(stay, this);
+    map->setGraphicsEffect(emphasize);
+    effects.insert(map, emphasize);
+}
+
+void EffectAnimation::emphasizefade(QGraphicsItem *map, bool stay)
+{
+    QAnimatedEffect *effect = qobject_cast<QAnimatedEffect *>(map->graphicsEffect());
+    if (effect) {
+        effectOut(map);
+        effect = registered.value(map);
+        if (effect) effect->deleteLater();
+        registered.insert(map, new EmphasizeFadeEffect(stay, this));
+        return;
+    }
+
+    EmphasizeFadeEffect *emphasize = new EmphasizeFadeEffect(stay, this);
     map->setGraphicsEffect(emphasize);
     effects.insert(map, emphasize);
 }
@@ -232,3 +250,85 @@ void FadeEffect::draw(QPainter *painter)
     painter->drawPixmap(offset, pixmap);
 }
 
+EmphasizeFadeEffect::EmphasizeFadeEffect(bool stay, QObject *parent)
+{
+    brightened = NULL;
+    this->setObjectName("emphasize_fader");
+    this->setParent(parent);
+    index = 0;
+    this->stay = stay;
+
+    QPropertyAnimation *anim = new QPropertyAnimation(this, "index");
+    connect(anim, SIGNAL(valueChanged(QVariant)), this, SLOT(update()));
+    anim->setEndValue(40);
+    anim->setDuration((40 - index) * 5);
+    anim->start(QAbstractAnimation::DeleteWhenStopped);
+}
+
+EmphasizeFadeEffect::~EmphasizeFadeEffect()
+{
+    if (brightened) {
+        delete brightened;
+        brightened = NULL;
+    }
+}
+
+QImage duplicateImage(const QImage &img)
+{
+    if (img.format() != QImage::Format_RGB888) {
+        return QImage(img).convertToFormat(QImage::Format_RGB888);
+    } else {
+        return QImage(img);
+    }
+}
+
+void lightContrastImage(QImage &img, int light, int Contrast)
+{
+    uchar *rgb = img.bits();
+    if (NULL == rgb) {
+        return;
+    }
+    int r;
+    int g;
+    int b;
+    int size = img.width() * img.height();
+    for (int i = 0; i < size ; i++) {
+        r = light * 0.01 * rgb[i * 3] - 150 + Contrast;
+        g = light * 0.01 * rgb[i * 3 + 1] - 150 + Contrast;
+        b = light * 0.01 * rgb[i * 3 + 2]  - 150 + Contrast;
+        r = qBound(0, r, 255);
+        g = qBound(0, g, 255);
+        b = qBound(0, b, 255);
+        rgb[i * 3] = r;
+        rgb[i * 3 + 1] = g;
+        rgb[i * 3 + 2] = b;
+    }
+}
+
+void EmphasizeFadeEffect::draw(QPainter *painter)
+{
+    QPoint offset;
+    QPixmap pixmap = sourcePixmap(Qt::LogicalCoordinates, &offset);
+
+    if (!brightened) {
+
+        QImage image = pixmap.toImage();
+        brightened = new QImage(pixmap.size(), QImage::Format_ARGB32);
+
+        int width = image.width();
+        int height = image.height();
+
+        //QRgb col;
+
+        for (int i = 0; i < width; ++i) {
+            for (int j = 0; j < height; ++j) {
+                //col = image.pixel(i, j);
+                brightened->setPixel(i, j, qRgba(255, 240, 57, 170));
+            }
+        }
+    }
+
+    painter->drawPixmap(offset, pixmap);
+    painter->setOpacity(qAbs(100 - index) / 200.0);
+    painter->drawImage(offset, *brightened);
+}

@@ -813,15 +813,13 @@ public:
 
     void onDamaged(ServerPlayer *target, const DamageStruct &damage) const
     {
-        if (!damage.card || !damage.card->isKindOf("Slash") || !target->canDiscard(target, "he"))
+        if (!damage.card || !damage.card->isKindOf("Slash") || !target->canDiscard(target, "he") || !damage.from || !damage.from->getWeapon())
             return;
         QVariant data = QVariant::fromValue(damage);
         Room *room = target->getRoom();
         if (room->askForCard(target, "..", "@duodao-get", data, objectName())) {
-            if (damage.from && damage.from->getWeapon()) {
-                room->broadcastSkillInvoke(objectName());
-                target->obtainCard(damage.from->getWeapon());
-            }
+            room->broadcastSkillInvoke(objectName());
+            target->obtainCard(damage.from->getWeapon());
         }
     }
 };
@@ -1021,15 +1019,9 @@ void DanshouCard::onEffect(const CardEffectStruct &effect) const
     Room *room = effect.from->getRoom();
     int len = subcardsLength();
     switch (len) {
-    case 0:
-        Q_ASSERT(false);
-        break;
-    case 1:
-        if (effect.from->canDiscard(effect.to, "he")) {
-            int id = room->askForCardChosen(effect.from, effect.to, "he", "danshou", false, Card::MethodDiscard);
-            room->throwCard(id, effect.to, effect.from);
-        }
-        break;
+    case 3:
+        room->damage(DamageStruct("danshou", effect.from, effect.to));
+        // break;
     case 2:
         if (!effect.to->isNude()) {
             const Card *card = room->askForExchange(effect.to, "danshou", 1, 1, true, "@danshou-give::" + effect.from->objectName());
@@ -1039,13 +1031,19 @@ void DanshouCard::onEffect(const CardEffectStruct &effect) const
                 delete card;
             }
         }
+        // break;
+    case 1:
+        if (effect.from->canDiscard(effect.to, "he")) {
+            int id = room->askForCardChosen(effect.from, effect.to, "he", "danshou", false, Card::MethodDiscard);
+            room->throwCard(id, effect.to, effect.from);
+        }
         break;
-    case 3:
-        room->damage(DamageStruct("danshou", effect.from, effect.to));
+    case 0:
+        Q_ASSERT(false);
         break;
     default:
-        room->drawCards(effect.from, 2, "danshou");
-        room->drawCards(effect.to, 2, "danshou");
+        // room->drawCards(effect.from, 2, "danshou");
+        // room->drawCards(effect.to, 2, "danshou");
         break;
     }
 }

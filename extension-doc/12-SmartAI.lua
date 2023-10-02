@@ -105,6 +105,7 @@ self:sort(self.enemies, "hp") -- 将所有敌方玩家按体力值从小到大�
 * value: 按综合值从小到大排序。
 * chaofeng：按嘲讽值从大到小排序，嘲讽值相同的，则按综合值从小到大排序。
 * defense：按防御值从小到大排序
+* equip：按装备区牌数从小到大排序
 * threat：按威胁值从大到小排序
 
 下面是一些对卡牌排序的函数，其中 inverse 参数的含义与 SmartAI:sort 相同，不再赘述。

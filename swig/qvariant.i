@@ -127,6 +127,14 @@ public:
         return $self->value<CardResponseStruct>();
     }
 
+	void setValue(CardInfoStruct *resp) {
+        $self->setValue(QVariant::fromValue(*resp));
+    }
+
+    CardInfoStruct toCardInfo() const{
+        return $self->value<CardInfoStruct>();
+    }
+
     void setValue(QList<int> intlist) {
         QVariantList varlist;
         for (int i = 0; i < intlist.length(); i++)

@@ -123,3 +123,30 @@ bool isNormalGameMode(const QString &mode)
     QRegExp moderx("(0[2-9]|10)p[dz]*");
     return moderx.exactMatch(mode);
 }
+
+
+QString IntList2String(const QList<int> &intlist)
+{
+    if (intlist.length() < 1)
+        return QString();
+    QString str(QString::number(intlist.at(0)));
+    for (int i = 1; i < intlist.size(); i++)
+        str.append('+' + QString::number(intlist.at(i)));
+    return str;
+}
+
+
+QList<int> String2IntList(const QString &str)
+{
+    QList<int> intlist;
+    if (str.isEmpty())
+        return intlist;
+    QStringList stringlist = str.split('+');
+    for (int i = 0; i < stringlist.size(); i++) {
+        QString n = stringlist.at(i);
+        bool ok;
+        intlist.append(n.toInt(&ok));
+        if (!ok) return QList<int>();
+    }
+    return intlist;
+}

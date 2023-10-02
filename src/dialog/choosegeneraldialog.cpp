@@ -35,6 +35,11 @@ void OptionButton::mouseDoubleClickEvent(QMouseEvent *)
     emit double_clicked();
 }
 
+void OptionButton::mouseReleaseEvent(QMouseEvent *)
+{
+    emit clicked();
+}
+
 ChooseGeneralDialog::ChooseGeneralDialog(const QStringList &general_names, QWidget *parent, bool view_only, const QString &title)
     : QDialog(parent)
 {
@@ -90,8 +95,13 @@ ChooseGeneralDialog::ChooseGeneralDialog(const QStringList &general_names, QWidg
 
         if (!view_only) {
             mapper->setMapping(button, general->objectName());
-            connect(button, SIGNAL(double_clicked()), mapper, SLOT(map()));
-            connect(button, SIGNAL(double_clicked()), this, SLOT(accept()));
+            if (Config.OneClickToChoose) {
+                connect(button, SIGNAL(clicked()), mapper, SLOT(map()));
+                connect(button, SIGNAL(clicked()), this, SLOT(accept()));
+            } else {
+                connect(button, SIGNAL(double_clicked()), mapper, SLOT(map()));
+                connect(button, SIGNAL(double_clicked()), this, SLOT(accept()));
+            }
         }
     }
 
@@ -193,7 +203,7 @@ ChooseGeneralDialog::ChooseGeneralDialog(const QStringList &general_names, QWidg
         progress_bar = new QSanCommandProgressBar();
         progress_bar->setFixedWidth(300);
         progress_bar->setTimerEnabled(true);
-        progress_bar->setCountdown(S_COMMAND_CHOOSE_GENERAL);
+        progress_bar->setCountdown(QSanProtocol::S_COMMAND_CHOOSE_GENERAL);
         progress_bar->show();
         last_layout->addWidget(progress_bar);
     }

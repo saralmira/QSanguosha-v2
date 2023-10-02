@@ -6,9 +6,9 @@
 #include "clientstruct.h"
 
 General::General(Package *package, const QString &name, const QString &kingdom,
-    int max_hp, bool male, bool hidden, bool never_shown)
+    int max_hp, bool male, bool hidden, bool never_shown, int initial_hp)
     : QObject(package), kingdom(kingdom), max_hp(max_hp), gender(male ? Male : Female),
-    hidden(hidden), never_shown(never_shown)
+    hidden(hidden), never_shown(never_shown), initial_hp(initial_hp)
 {
     static QChar lord_symbol('$');
     if (name.endsWith(lord_symbol)) {
@@ -70,6 +70,11 @@ bool General::isHidden() const
 bool General::isTotallyHidden() const
 {
     return never_shown;
+}
+
+int General::getInitialHp() const
+{
+    return initial_hp;
 }
 
 void General::addSkill(Skill *skill)

@@ -54,6 +54,7 @@ public:
 
     void fade(QGraphicsItem *map);
     void emphasize(QGraphicsItem *map, bool stay = true);
+    void emphasizefade(QGraphicsItem *map, bool stay = true);
     void sendBack(QGraphicsItem *map);
     void effectOut(QGraphicsItem *map);
     void deleteEffect(QAnimatedEffect *effect);
@@ -103,6 +104,21 @@ public:
 
 protected:
     virtual void draw(QPainter *painter);
+};
+
+class EmphasizeFadeEffect : public QAnimatedEffect
+{
+    Q_OBJECT
+
+public:
+    EmphasizeFadeEffect(bool stay = false, QObject *parent = 0);
+    ~EmphasizeFadeEffect();
+
+protected:
+    virtual void draw(QPainter *painter);
+
+private:
+    QImage *brightened;
 };
 
 #endif

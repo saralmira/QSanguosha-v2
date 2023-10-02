@@ -198,6 +198,28 @@ private:
     QSet<QString> set;
 };
 
+class ChoosePlayersCard : public DummyCard
+{
+public:
+    ChoosePlayersCard()
+    {
+        target_fixed = false;
+    }
+
+    void setPlayerNames(const QStringList &names)
+    {
+        set = names.toSet();
+    }
+
+    bool targetFilter(const QList<const Player *> &, const Player *to_select, const Player *) const
+    {
+        return set.contains(to_select->objectName());
+    }
+
+private:
+    QSet<QString> set;
+};
+
 ChoosePlayerSkill::ChoosePlayerSkill()
     : ZeroCardViewAsSkill("choose_player")
 {
@@ -215,3 +237,19 @@ const Card *ChoosePlayerSkill::viewAs() const
     return card;
 }
 
+ChoosePlayersSkill::ChoosePlayersSkill()
+    : ZeroCardViewAsSkill("choose_players")
+{
+    card = new ChoosePlayersCard;
+    card->setParent(this);
+}
+
+void ChoosePlayersSkill::setPlayerNames(const QStringList &names)
+{
+    card->setPlayerNames(names);
+}
+
+const Card *ChoosePlayersSkill::viewAs() const
+{
+    return card;
+}

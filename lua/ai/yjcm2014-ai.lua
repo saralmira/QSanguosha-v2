@@ -69,6 +69,7 @@ sgs.ai_skill_invoke.sidi = true
 sgs.ai_skill_use["@@sidi"] = function(self)
 	local current = self.room:getCurrent()
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 	if self:isEnemy(current) then
 		if (getCardsNum("Slash", current, self.player) >= 1 or self.player:getPile("sidi"):length() > 2)
 		and not (current:hasWeapon("crossbow") or current:hasSkill("paoxiao")) then
@@ -101,8 +102,10 @@ end
 
 sgs.ai_skill_invoke.yonglve = function(self)
 	local current = self.room:getCurrent()
+	local slash_clone = sgs.Sanguosha:cloneCard("slash")
+	slash_clone:deleteLater()
 	if self:isFriend(current) and self:askForCardChosen(current, "h", "dummyReason", sgs.Card_MethodDiscard) then
-		if not self:slashIsEffective(sgs.Sanguosha:cloneCard("slash"), current, self.player) then return true end
+		if not self:slashIsEffective(slash_clone, current, self.player) then return true end
 		if not self:isWeak(current) or getKnownCard(current, self.player, "Jink") > 0 then return true end
 	elseif self:isEnemy(current) then
 		if self:askForCardChosen(current, "h", "dummyReason", sgs.Card_MethodDiscard) then return true end
@@ -116,7 +119,7 @@ sgs.ai_skill_invoke.yonglve = function(self)
 			end
 		end
 		if self:isWeak(current) and current:getHp() == 1 and (sgs.card_lack[current:objectName()]["Jink"] == 1 or getCardsNum("Jink", current, self.player) == 0)
-			and self:slashIsEffective(sgs.Sanguosha:cloneCard("slash"), current, self.player) then
+			and self:slashIsEffective(slash_clone, current, self.player) then
 			sgs.ai_skill_cardchosen.yonglve = self:getCardRandomly(current, "j")
 			return true
 		end

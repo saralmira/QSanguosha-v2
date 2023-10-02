@@ -497,7 +497,12 @@ aa:
     if(packet.getCommandType()==QSanProtocol::S_COMMAND_CHECK_VERSION)
     {
         ti=tw->item(i,2);
-        ti->setText(packet.getMessageBody().toString());
+        QString cv_str = packet.getMessageBody().toString();
+        int len = cv_str.length();
+        if (len >= 2 && cv_str[len - 2] == '$') {
+            cv_str = cv_str.left(len - 2) + (cv_str.right(1).toInt() ? tr(" (Enable client update)") : tr(" (Disable client update)"));
+        }
+        ti->setText(cv_str);
         ti->setTextColor(QColor(0,0,0));
         if(socket->canReadLine())
             goto aa;

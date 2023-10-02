@@ -1339,7 +1339,7 @@ void LexueCard::onEffect(const CardEffectStruct &effect) const
     int card_id = card->getEffectiveId();
     room->showCard(effect.to, card_id);
 
-    if (card->getTypeId() == Card::TypeBasic || card->isNDTrick()) {
+    if ((card->getTypeId() == Card::TypeBasic && !card->isKindOf("Jink")) || card->isNDTrick()) {
         room->setPlayerMark(effect.from, "lexue", card_id);
         room->setPlayerFlag(effect.from, "lexue");
     } else {
@@ -1347,6 +1347,32 @@ void LexueCard::onEffect(const CardEffectStruct &effect) const
         room->setPlayerFlag(effect.from, "-lexue");
     }
 }
+
+class LexueTrigger : public TriggerSkill
+{
+public:
+    LexueTrigger() : TriggerSkill("#lexue-trigger")
+    {
+        frequency = Compulsory;
+        events << CardUsed << CardResponded;
+    }
+
+    bool trigger(TriggerEvent triggerEvent, Room *, ServerPlayer *player, QVariant &data) const
+    {
+        if (triggerEvent == CardUsed) {
+            CardUseStruct use = data.value<CardUseStruct>();
+            if (use.card && use.card->getSkillName() == "lexue" && player->hasFlag("lexue")) {
+                player->drawCards(1, "lexue");
+            }
+        } else if (triggerEvent == CardResponded) {
+            CardResponseStruct resp = data.value<CardResponseStruct>();
+            if (resp.m_card && resp.m_card->getSkillName() == "lexue" && player->hasFlag("lexue")) {
+                player->drawCards(1, "lexue");
+            }
+        }
+        return false;
+    }
+};
 
 class Lexue : public ViewAsSkill
 {
@@ -1366,10 +1392,13 @@ public:
 
     bool isEnabledAtPlay(const Player *player) const
     {
-        if (player->hasUsed("LexueCard") && player->hasFlag("lexue")) {
-            int card_id = player->getMark("lexue");
-            const Card *card = Sanguosha->getCard(card_id);
-            return card->isAvailable(player);
+        if (player->hasUsed("LexueCard")) {
+            if (player->hasFlag("lexue")) {
+                int card_id = player->getMark("lexue");
+                const Card *card = Sanguosha->getCard(card_id);
+                return card->isAvailable(player);
+            }
+            return false;
         } else
             return true;
     }
@@ -1609,6 +1638,7 @@ public:
     Sizhan() :TriggerSkill("sizhan")
     {
         events << DamageInflicted << EventPhaseStart;
+        frequency = Compulsory;
     }
 
     bool trigger(TriggerEvent triggerEvent, Room* room, ServerPlayer *elai, QVariant &data) const
@@ -1642,8 +1672,6 @@ public:
                 room->sendLog(log);
                 room->loseHp(elai, x);
             }
-
-            elai->setFlags("-shenli");
         }
 
         return false;
@@ -1656,14 +1684,15 @@ public:
     Shenli() :TriggerSkill("shenli")
     {
         events << ConfirmDamage;
+        frequency = Compulsory;
     }
 
     bool trigger(TriggerEvent, Room* room, ServerPlayer *elai, QVariant &data) const
     {
         DamageStruct damage = data.value<DamageStruct>();
-        if (damage.card && damage.card->isKindOf("Slash") &&
-            elai->getPhase() == Player::Play && !elai->hasFlag("shenli")) {
-            elai->setFlags("shenli");
+        if (damage.card && (damage.card->isKindOf("Slash") || damage.card->isKindOf("Duel")) &&
+            elai->getPhase() == Player::Play && !elai->getHistory("shenli")) {
+            room->addPlayerHistory(elai, "shenli");
 
             int x = elai->getMark("@struggle");
             if (x > 0) {
@@ -1778,39 +1807,35 @@ public:
 
 YtYisheCard::YtYisheCard()
 {
-    target_fixed = true;
-    will_throw = false;
+    target_fixed = false;
+    will_throw = true;
     handling_method = Card::MethodNone;
 }
 
-void YtYisheCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &) const
+bool YtYisheCard::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const
 {
-    if (subcards.length() > 5)
+    return targets.isEmpty() && to_select != Self && to_select->getHandcardNum() <= Self->getHandcardNum();
+}
+
+void YtYisheCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const
+{
+    //room->broadcastSkillInvoke("ytyishe", (qrand() % 2) + 1);
+
+    QList<int> cards_self = source->handCards();
+    if (!cards_self.size() || targets.size() != 1)
         return;
 
-    QList<int> rice = source->getPile("ytrice");
+    ServerPlayer *target = targets.first();
+    QList<int> cards_t = target->handCards();
 
-    QList<int> to_handcard;
-    QList<int> to_rice;
-
-    foreach (int id, (rice + subcards).toSet()) {
-        if (!rice.contains(id))
-            to_rice << id;
-        else if (!subcards.contains(id))
-            to_handcard << id;
-    }
-
-    Q_ASSERT(rice.length() + to_rice.length() <= 5);
-
-    if (!to_rice.isEmpty())
-        source->addToPile("ytrice", to_rice);
-
-    if (!to_handcard.isEmpty()) {
-        DummyCard dummy(to_handcard);
-        CardMoveReason r(CardMoveReason::S_REASON_EXCHANGE_FROM_PILE, source->objectName());
-        room->moveCardTo(&dummy, source, Player::PlaceHand, r, true);
-    }
+    DummyCard dummy_s(cards_self);
+    DummyCard dummy_t(cards_t);
+    CardMoveReason r(CardMoveReason::S_REASON_SWAP, source->objectName());
+    room->moveCardTo(&dummy_s, source, target, Player::PlaceHand, r, false);
+    room->moveCardTo(&dummy_t, target, source, Player::PlaceHand, r, false);
 }
+
+/*
 
 class YtYisheViewAsSkill : public ViewAsSkill
 {
@@ -1905,6 +1930,35 @@ public:
     }
 };
 
+void YtYisheCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &) const
+{
+    if (subcards.length() > 5)
+        return;
+
+    QList<int> rice = source->getPile("ytrice");
+
+    QList<int> to_handcard;
+    QList<int> to_rice;
+
+    foreach (int id, (rice + subcards).toSet()) {
+        if (!rice.contains(id))
+            to_rice << id;
+        else if (!subcards.contains(id))
+            to_handcard << id;
+    }
+
+    Q_ASSERT(rice.length() + to_rice.length() <= 5);
+
+    if (!to_rice.isEmpty())
+        source->addToPile("ytrice", to_rice);
+
+    if (!to_handcard.isEmpty()) {
+        DummyCard dummy(to_handcard);
+        CardMoveReason r(CardMoveReason::S_REASON_EXCHANGE_FROM_PILE, source->objectName());
+        room->moveCardTo(&dummy, source, Player::PlaceHand, r, true);
+    }
+}
+
 class YtYishe : public GameStartSkill
 {
 public:
@@ -1967,6 +2021,180 @@ public:
 
         return false;
     }
+};
+
+*/
+
+class YtYishe : public ZeroCardViewAsSkill
+{
+public:
+    YtYishe() : ZeroCardViewAsSkill("ytyishe") { }
+
+    const Card *viewAs() const
+    {
+        return new YtYisheCard;
+    }
+
+    bool isEnabledAtPlay(const Player *player) const
+    {
+        return !player->hasUsed("YtYisheCard");
+    }
+
+    bool isEnabledAtResponse(const Player *, const QString &) const { return false; }
+};
+
+YtMidaoCard::YtMidaoCard()
+{
+    target_fixed = true;
+    will_throw = true;
+    handling_method = Card::MethodNone;
+}
+
+void YtMidaoCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &) const
+{
+    //room->broadcastSkillInvoke("ytmidao", (qrand() % 2) + 1);
+
+    QList<ServerPlayer *> others = room->getOtherPlayers(source);
+    int count = source->getHandcardNum();
+    int maxcount = count;
+
+    foreach (ServerPlayer *p, others)
+    {
+        if (p->getHandcardNum() <= count)
+            continue;
+
+        room->delay();
+        const Card *card = room->askForExchange(p, "ytmidao", 1, 1, true, "ytmidao_ask::" + source->objectName(), false);
+        if (!card)
+            continue;
+
+        CardMoveReason movereason(CardMoveReason::S_REASON_GIVE, source->objectName(), p->objectName(), "ytmidao", QString());
+        room->moveCardTo(card, p, source, Player::PlaceHand, movereason);
+
+        int newhcnum = p->getHandcardNum();
+        maxcount = newhcnum > maxcount ? newhcnum : maxcount;
+    }
+
+    if (source->getHandcardNum() > maxcount)
+        room->loseHp(source, 1);
+}
+
+class YtMidao : public ZeroCardViewAsSkill
+{
+public:
+    YtMidao() : ZeroCardViewAsSkill("ytmidao") { }
+
+    const Card *viewAs() const
+    {
+        return new YtMidaoCard;
+    }
+
+    bool isEnabledAtPlay(const Player *player) const
+    {
+        if (player->hasUsed("YtMidaoCard"))
+            return false;
+        bool res = false;
+        int count = player->getHandcardNum();
+        foreach (const ClientPlayer *p, ClientInstance->getPlayers()) {
+            if (p->getHandcardNum() > count) {
+                res = true;
+                break;
+            }
+        }
+        return res;
+    }
+
+    bool isEnabledAtResponse(const Player *, const QString &) const { return false; }
+};
+
+YtPuduCard::YtPuduCard()
+{
+    target_fixed = true;
+    will_throw = false;
+    handling_method = Card::MethodNone;
+}
+
+void YtPuduCard::use(Room *room, ServerPlayer *player, QList<ServerPlayer *> &) const
+{
+    room->broadcastSkillInvoke("ytpudu");
+    room->notifySkillInvoked(player, "ytpudu");
+    room->doSuperLightbox("zhanggongqi", "ytpudu");
+    room->removePlayerMark(player, "@ytpudu");
+
+    QList<ServerPlayer *> others = room->getOtherPlayers(player);
+    foreach (ServerPlayer *p, others) {
+        if (p->getHandcardNum() > 0) {
+            DummyCard dummy_card(p->handCards());
+            CardMoveReason reason(CardMoveReason::S_REASON_TRANSFER, player->objectName(), p->objectName(), "ytpudu", QString());
+            room->moveCardTo(&dummy_card, p, player, Player::PlaceHand, reason, false);
+        }
+    }
+
+    bool ismaxcards = false;
+    for (int i = 0; ; ) {
+        if (others.size() == 0)
+            break;
+
+        foreach (ServerPlayer *p2, others) {
+            if (p2->isAlive() && p2->getHandcardNum() >= player->getHandcardNum()) {
+                ismaxcards = true;
+                break;
+            }
+        }
+        if (ismaxcards)
+            break;
+
+        ServerPlayer *p = others[i];
+        if (!p->isAlive()) {
+            others.removeAt(i);
+            if (others.size() <= i)
+                i = 0;
+            continue;
+        }
+
+        const Card *card = room->askForExchange(player, "ytpudu", 1, 1, true, "ytpudu_ask::" + p->objectName(), false);
+        if (!card)
+            break;
+
+        CardMoveReason movereason(CardMoveReason::S_REASON_GIVE, player->objectName(), p->objectName(), "ytpudu", QString());
+        room->moveCardTo(card, player, p, Player::PlaceHand, movereason);
+
+        ++i;
+        if (others.size() <= i)
+            i = 0;
+    }
+}
+
+class YtPudu : public ZeroCardViewAsSkill
+{
+public:
+    YtPudu() : ZeroCardViewAsSkill("ytpudu")
+    {
+        response_or_use = true;
+        frequency = Limited;
+        limit_mark = "@ytpudu";
+    }
+
+    const Card *viewAs() const
+    {
+        return new YtPuduCard;
+    }
+
+    bool isEnabledAtPlay(const Player *player) const
+    {
+        if (player->getMark("@ytpudu") <= 0)
+            return false;
+        bool res = false;
+        foreach (const ClientPlayer *p, ClientInstance->getPlayers()) {
+            if (p->getHandcardNum() > 0) {
+                res = true;
+                break;
+            }
+        }
+        return res;
+    }
+
+    bool isEnabledAtResponse(const Player *, const QString &) const { return false; }
 };
 
 class Zhengfeng : public AttackRangeSkill
@@ -2079,7 +2307,7 @@ public:
 
     bool viewFilter(const QList<const Card *> &selected, const Card *to_select) const
     {
-        return selected.isEmpty() && to_select->isKindOf("Weapon");
+        return selected.isEmpty() && (to_select->isKindOf("Weapon") || to_select->isKindOf("Armor"));
     }
 
     const Card *viewAs(const QList<const Card *> &cards) const
@@ -2163,6 +2391,8 @@ YitianPackage::YitianPackage()
 
     General *jiangboyue = new General(this, "jiangboyue", "shu");
     jiangboyue->addSkill(new Lexue);
+    jiangboyue->addSkill(new LexueTrigger);
+    related_skills.insertMulti("lexue", "#lexue-trigger");
     jiangboyue->addSkill(new Xunzhi);
 
     General *jiawenhe = new General(this, "jiawenhe", "qun");
@@ -2180,8 +2410,10 @@ YitianPackage::YitianPackage()
     related_skills.insertMulti("toudu", "#toudu-slash-ndl");*/
 
     General *zhanggongqi = new General(this, "zhanggongqi", "qun", 3);
+    zhanggongqi->addSkill(new YtMidao);
     zhanggongqi->addSkill(new YtYishe);
-    zhanggongqi->addSkill(new Xiliang);
+    zhanggongqi->addSkill(new YtPudu);
+    //zhanggongqi->addSkill(new Xiliang);
 
     General *yitianjian = new General(this, "yitianjian", "wei");
     yitianjian->addSkill(new Zhengfeng);
@@ -2191,7 +2423,7 @@ YitianPackage::YitianPackage()
     General *panglingming = new General(this, "panglingming", "wei");
     panglingming->addSkill(new Taichen);
 
-    skills << new LianliSlashViewAsSkill << new YtYisheAsk;
+    skills << new LianliSlashViewAsSkill;// << new YtYisheAsk;
 
     addMetaObject<YTChengxiangCard>();
     addMetaObject<JuejiCard>();
@@ -2200,8 +2432,10 @@ YitianPackage::YitianPackage()
     addMetaObject<GuihanCard>();
     addMetaObject<LexueCard>();
     addMetaObject<XunzhiCard>();
-    addMetaObject<YtYisheAskCard>();
+    //addMetaObject<YtYisheAskCard>();
     addMetaObject<YtYisheCard>();
+    addMetaObject<YtMidaoCard>();
+    addMetaObject<YtPuduCard>();
     addMetaObject<TaichenCard>();
     addMetaObject<TouduCard>();
 }

@@ -219,7 +219,12 @@ sgs.qiangxi_keep_value = {
 	Weapon = 5
 }
 
-
+sgs.ai_skill_choice.qiangxi = function(self, choices)
+	if self.player:getHp() < self.player:getMaxHp() and self.player:getMaxHp() > 1 and self:getCardsNum("Peach") == 0 then
+		return "maxhp"
+	end
+	return "hp"
+end
 
 local huoji_skill={}
 huoji_skill.name="huoji"
@@ -301,7 +306,8 @@ local lianhuan_skill={}
 lianhuan_skill.name="lianhuan"
 table.insert(sgs.ai_skills,lianhuan_skill)
 lianhuan_skill.getTurnUseCard = function(self)
-	local cards = self.player:getCards("h")
+	
+	local cards = self.player:getCards("he")
 	cards = sgs.QList2Table(cards)
 
 	local card
@@ -323,6 +329,12 @@ lianhuan_skill.getTurnUseCard = function(self)
 				if dummy_use.card then shouldUse = false end
 			end
 			if acard:getTypeId() == sgs.Card_TypeEquip then
+				--装备区的牌
+				if self.player:hasEquip(acard) then
+					if not ((acard:isKindOf("SilverLion") and self.player:getHp() < self.player:getMaxHp()) or acard:isKindOf("Vine")) and self:getUseValue(acard) > sgs.ai_use_value.IronChain then
+						shouldUse = false
+					end
+				end
 				local dummy_use = { isDummy = true }
 				self:useEquipCard(acard, dummy_use)
 				if dummy_use.card then shouldUse = false end
@@ -345,6 +357,15 @@ end
 
 sgs.ai_cardneed.lianhuan = function(to, card)
 	return card:getSuit() == sgs.Card_Club and to:getHandcardNum() <= 2
+end
+
+local niepan_skill={}
+niepan_skill.name="niepan"
+table.insert(sgs.ai_skills,niepan_skill)
+niepan_skill.getTurnUseCard = function(self)
+	if self.player:getMark("@nirvana") > 0 and self.player:getHp() < 2 and self.player:getHandcardNum() < 3 and self:getCardsNum("Peach") + self:getCardsNum("Analeptic") == 0 then
+		return sgs.Card_Parse("@NiepanCard=.")
+	end
 end
 
 sgs.ai_skill_invoke.niepan = function(self, data)
@@ -541,7 +562,7 @@ local luanji_skill = {}
 luanji_skill.name = "luanji"
 table.insert(sgs.ai_skills, luanji_skill)
 luanji_skill.getTurnUseCard = function(self)
-	local archery = sgs.Sanguosha:cloneCard("archery_attack")
+	
 	local first_found, second_found = false, false
 	local first_card, second_card
 	if self.player:getHandcardNum() >= 2 then
@@ -605,10 +626,11 @@ sgs.ai_skill_invoke.shuangxiong=function(self,data)
 		return false
 	end
 	local duel = sgs.Sanguosha:cloneCard("duel")
-
+	
 	local dummy_use = {isDummy = true}
 	self:useTrickCard(duel, dummy_use)
-
+	duel:deleteLater()
+	
 	return self.player:getHandcardNum() >= 3 and dummy_use.card
 end
 

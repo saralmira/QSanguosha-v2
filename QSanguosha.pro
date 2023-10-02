@@ -6,6 +6,10 @@ QT += network widgets
 !winrt: QT += declarative
 TEMPLATE = app
 
+CONFIG += c++11
+
+CONFIG += audio
+
 CONFIG += lua
 
 CONFIG -= flat
@@ -13,6 +17,11 @@ CONFIG -= flat
 CONFIG += precompile_header
 PRECOMPILED_HEADER = src/pch.h
 DEFINES += USING_PCH
+
+#msvc {
+#    QMAKE_CFLAGS += utf-8
+#    QMAKE_CXXFLAGS += utf-8
+#}
 
 SOURCES += \
     src/main.cpp \
@@ -42,6 +51,7 @@ SOURCES += \
     src/dialog/generaloverview.cpp \
     src/dialog/mainwindow.cpp \
     src/dialog/playercarddialog.cpp \
+    src/dialog/choosecarddialog.cpp \
     src/dialog/roleassigndialog.cpp \
     src/dialog/scenario-overview.cpp \
     src/package/exppattern.cpp \
@@ -130,7 +140,16 @@ SOURCES += \
     src/package/jsp.cpp \
     src/dialog/mainwindowserverlist.cpp \
     src/dialog/dialogslsettings.cpp \
-    src/server/qtupnpportmapping.cpp
+    src/server/qtupnpportmapping.cpp \
+    src/package/hunlie.cpp \
+    src/package/skgenerals.cpp \
+    src/package/standard-dialogs.cpp \
+    src/package/diy-sgs.cpp \
+    src/package/ol_ex.cpp \
+    src/package/hulao.cpp \
+    src/package/wzboss.cpp \
+    src/dialog/startupdialog.cpp \
+    src/core/updateservice.cpp
 
 HEADERS += \
     src/client/aux-skills.h \
@@ -161,6 +180,7 @@ HEADERS += \
     src/dialog/generaloverview.h \
     src/dialog/mainwindow.h \
     src/dialog/playercarddialog.h \
+    src/dialog/choosecarddialog.h \
     src/dialog/roleassigndialog.h \
     src/dialog/scenario-overview.h \
     src/package/exppattern.h \
@@ -246,11 +266,20 @@ HEADERS += \
     src/package/tw.h \
     src/package/ol.h \
     src/package/jsp.h \
-    src/pch.h \
     src/dialog/mainwindowserverlist.h \
     src/dialog/dialogslsettings.h \
     src/core/defines.h \
-    src/server/qtupnpportmapping.h
+    src/server/qtupnpportmapping.h \
+    src/package/hunlie.h \
+    src/package/skgenerals.h \
+    src/package/standard-dialogs.h \
+    src/package/diy-sgs.h \
+    src/package/ol_ex.h \
+    src/package/hulao.h \
+    src/package/wzboss.h \
+    src/dialog/startupdialog.h \
+    src/core/updateservice.h \
+    src/pch.h
 
 FORMS += \
     src/dialog/cardoverview.ui \

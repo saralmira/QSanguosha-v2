@@ -103,7 +103,7 @@ QiangxiCard::QiangxiCard()
 
 bool QiangxiCard::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const
 {
-    if (!targets.isEmpty() || to_select == Self)
+    if (!targets.isEmpty() || to_select == Self || Self->getHistory(QString("qiangxi_%1").arg(to_select->objectName())) > 0)
         return false;
 
     int rangefix = 0;
@@ -117,12 +117,22 @@ bool QiangxiCard::targetFilter(const QList<const Player *> &targets, const Playe
 
 void QiangxiCard::onEffect(const CardEffectStruct &effect) const
 {
-    Room *room = effect.to->getRoom();
+    ServerPlayer *player = effect.from;
+    ServerPlayer *target = effect.to;
+    Room *room = player->getRoom();
 
-    if (subcards.isEmpty())
-        room->loseHp(effect.from);
+    room->addPlayerHistory(player, QString("qiangxi_%1").arg(target->objectName()));
 
-    room->damage(DamageStruct("qiangxi", effect.from, effect.to));
+    if (subcards.isEmpty()) {
+        QString choice = room->askForChoice(player, "qiangxi", "hp+maxhp");
+        if (choice == "maxhp") {
+            room->loseMaxHp(player);
+        } else {
+            room->loseHp(player);
+        }
+    }
+
+    room->damage(DamageStruct("qiangxi", player, target));
 }
 
 class Qiangxi : public ViewAsSkill
@@ -134,7 +144,7 @@ public:
 
     bool isEnabledAtPlay(const Player *player) const
     {
-        return !player->hasUsed("QiangxiCard");
+        return player->usedTimes("QiangxiCard") < 2;
     }
 
     bool viewFilter(const QList<const Card *> &selected, const Card *to_select) const
@@ -149,7 +159,6 @@ public:
         else if (cards.length() == 1) {
             QiangxiCard *card = new QiangxiCard;
             card->addSubcards(cards);
-
             return card;
         } else
             return NULL;
@@ -328,7 +337,7 @@ class Lianhuan : public OneCardViewAsSkill
 public:
     Lianhuan() : OneCardViewAsSkill("lianhuan")
     {
-        filter_pattern = ".|club|.|hand";
+        filter_pattern = ".|club|.|hand,equipped";
         response_or_use = true;
     }
 
@@ -339,8 +348,166 @@ public:
         chain->setSkillName(objectName());
         return chain;
     }
+
+    bool isEnabledAtPlay(const Player *player) const
+    {
+        foreach (const Card *card, player->getEquips())
+            if (card->getSuit() == Card::Club)
+                return true;
+
+        foreach (const Card *card, player->getHandcards())
+            if (card->getSuit() == Card::Club)
+                return true;
+
+        return false;
+    }
 };
 
+class LianhuanTargetSkill : public TargetModSkill
+{
+public:
+    LianhuanTargetSkill() : TargetModSkill("#lianhuan-target")
+    {
+        pattern = "%iron_chain";
+    }
+
+    int getExtraTargetNum(const Player *from, const Card *) const
+    {
+        return from->hasSkill("lianhuan") ? 1 : 0;
+    }
+};
+
+class Yuhuo : public TriggerSkill
+{
+public:
+    Yuhuo() : TriggerSkill("yuhuo")
+    {
+        events << TargetSpecified << TargetConfirmed;
+        frequency = Skill::NotFrequent;
+    }
+
+    bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
+    {
+        CardUseStruct use = data.value<CardUseStruct>();
+        if (((triggerEvent == TargetSpecified && !use.to.contains(player)) ||
+            (triggerEvent == TargetConfirmed && use.to.contains(player))) && !room->isSomeoneDying()) {
+            if (use.card->isRed() && !use.card->isSkillOrDummy() && !use.card->isKindOf("EquipCard") &&
+                room->askForSkillInvoke(player, objectName(), data)) {
+                room->broadcastSkillInvoke(objectName());
+                use.nullified_list << "_ALL_TARGETS";
+                data = QVariant::fromValue(use);
+
+                LogMessage log;
+                log.type = "#yuhuo-invoke";
+                log.from = player;
+                log.card_str = use.card->toString();
+                log.arg = objectName();
+                room->sendLog(log);
+
+                room->damage(DamageStruct(objectName(), player, player, 1, DamageStruct::Fire));
+                return false;
+            }
+        }
+        return false;
+    }
+};
+
+inline void NiepanFunction(Room *room, ServerPlayer *pangtong)
+{
+    if (pangtong->getMark("@nirvana") == 0)
+        return;
+
+    room->broadcastSkillInvoke("niepan");
+    //room->doLightbox("$NiepanAnimate");
+    room->doSuperLightbox("pangtong", "niepan");
+
+    room->removePlayerMark(pangtong, "@nirvana");
+    pangtong->throwAllMarks(true);
+    pangtong->throwAllHandCardsAndEquips();
+    QList<const Card *> tricks = pangtong->getJudgingArea();
+    foreach (const Card *trick, tricks) {
+        CardMoveReason reason(CardMoveReason::S_REASON_NATURAL_ENTER, pangtong->objectName());
+        room->throwCard(trick, reason, NULL);
+    }
+
+    if (pangtong->getHp() < 3)
+        room->recover(pangtong, RecoverStruct(pangtong, NULL, 3 - pangtong->getHp()));
+
+    pangtong->drawCards(3, "niepan");
+
+    if (pangtong->isChained())
+        room->setPlayerProperty(pangtong, "chained", false);
+
+    if (!pangtong->faceUp())
+        pangtong->turnOver();
+}
+
+NiepanCard::NiepanCard()
+{
+    mute = true;
+    will_throw = false;
+    target_fixed = true;
+}
+
+void NiepanCard::use(Room *room, ServerPlayer *pangtong, QList<ServerPlayer *> &) const
+{
+    NiepanFunction(room, pangtong);
+}
+
+class Niepan : public ZeroCardViewAsSkill
+{
+public:
+    Niepan() : ZeroCardViewAsSkill("niepan")
+    {
+        response_pattern = "@@niepan";
+        frequency = Limited;
+        limit_mark = "@nirvana";
+        response_or_use = true;
+    }
+
+    const Card *viewAs() const
+    {
+        return new NiepanCard;
+    }
+
+    bool isEnabledAtPlay(const Player *player) const
+    {
+        return player->getMark("@nirvana") > 0;
+    }
+
+    bool isEnabledAtResponse(const Player *, const QString &) const { return false; }
+};
+
+class NiepanTrigger : public TriggerSkill
+{
+public:
+    NiepanTrigger() : TriggerSkill("#niepan-trigger")
+    {
+        events << AskForPeaches;
+        frequency = Limited;
+        limit_mark = "@nirvana";
+    }
+
+    bool triggerable(const ServerPlayer *target) const
+    {
+        return TriggerSkill::triggerable(target) && target->getMark("@nirvana") > 0;
+    }
+
+    bool trigger(TriggerEvent, Room *room, ServerPlayer *pangtong, QVariant &data) const
+    {
+        DyingStruct dying_data = data.value<DyingStruct>();
+        if (dying_data.who != pangtong)
+            return false;
+
+        if (pangtong->askForSkillInvoke("niepan", data)) {
+            NiepanFunction(room, pangtong);
+        }
+
+        return false;
+    }
+};
+
+/*
 class Niepan : public TriggerSkill
 {
 public:
@@ -368,7 +535,7 @@ public:
             room->doSuperLightbox("pangtong", "niepan");
 
             room->removePlayerMark(pangtong, "@nirvana");
-
+            pangtong->throwAllMarks(false);
             pangtong->throwAllHandCardsAndEquips();
             QList<const Card *> tricks = pangtong->getJudgingArea();
             foreach (const Card *trick, tricks) {
@@ -376,7 +543,9 @@ public:
                 room->throwCard(trick, reason, NULL);
             }
 
-            room->recover(pangtong, RecoverStruct(pangtong, NULL, 3 - pangtong->getHp()));
+            if (pangtong->getHp() < 3)
+                room->recover(pangtong, RecoverStruct(pangtong, NULL, 3 - pangtong->getHp()));
+
             pangtong->drawCards(3, objectName());
 
             if (pangtong->isChained())
@@ -389,6 +558,7 @@ public:
         return false;
     }
 };
+*/
 
 class Huoji : public OneCardViewAsSkill
 {
@@ -556,7 +726,12 @@ FirePackage::FirePackage()
 
     General *pangtong = new General(this, "pangtong", "shu", 3); // SHU 010
     pangtong->addSkill(new Lianhuan);
+    pangtong->addSkill(new LianhuanTargetSkill);
+    related_skills.insertMulti("lianhuan", "#lianhuan-target");
+    pangtong->addSkill(new Yuhuo);
     pangtong->addSkill(new Niepan);
+    pangtong->addSkill(new NiepanTrigger);
+    related_skills.insertMulti("niepan", "#niepan-trigger");
 
     General *wolong = new General(this, "wolong", "shu", 3); // SHU 011
     wolong->addSkill(new Huoji);
@@ -582,6 +757,7 @@ FirePackage::FirePackage()
     addMetaObject<QuhuCard>();
     addMetaObject<QiangxiCard>();
     addMetaObject<TianyiCard>();
+    addMetaObject<NiepanCard>();
 }
 
 ADD_PACKAGE(Fire)

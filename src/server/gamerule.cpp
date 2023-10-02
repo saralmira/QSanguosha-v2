@@ -7,6 +7,7 @@
 #include "settings.h"
 #include "json.h"
 #include "roomthread.h"
+#include "ai.h"
 
 GameRule::GameRule(QObject *)
     : TriggerSkill("game_rule")
@@ -62,10 +63,10 @@ void GameRule::onPhaseProceed(ServerPlayer *player) const
         break;
     }
     case Player::Draw: {
-        int num = 2;
+        int num = room->getDefaultDrawCards();
         if (player->hasFlag("Global_FirstRound")) {
             room->setPlayerFlag(player, "-Global_FirstRound");
-            if (room->getMode() == "02_1v1") num--;
+            if (room->getMode() == "02_1v1" || objectName() == "transform_mode") num--;
         }
 
         QVariant data = num;
@@ -109,8 +110,9 @@ void GameRule::onPhaseProceed(ServerPlayer *player) const
             room->sendLog(msg);
         }
         int discard_num = handcard_num - player->getMaxCards();
-        if (discard_num > 0)
+        if (discard_num > 0) {
             room->askForDiscard(player, "gamerule", discard_num, discard_num);
+        }
         break;
     }
     case Player::Finish: {
@@ -146,7 +148,7 @@ bool GameRule::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *play
                 }
             }
             foreach (ServerPlayer *player, room->getPlayers()) {
-                if (player->getGeneral()->getKingdom() == "god" && player->getGeneralName() != "anjiang"
+                if (room->getMode() != "05_wz" && player->getGeneral()->getKingdom() == "god" && player->getGeneralName() != "anjiang"
                     && !player->getGeneralName().startsWith("boss_"))
                     room->setPlayerProperty(player, "kingdom", room->askForKingdom(player));
                 foreach (const Skill *skill, player->getVisibleSkillList()) {
@@ -205,7 +207,12 @@ bool GameRule::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *play
             int level = room->getTag("BossModeLevel").toInt();
             if (limit >= 0 && level < Config.BossLevel && player->getMark("Global_TurnCount") > limit)
                 room->gameOver("lord");
+        } else if (room->getMode() == "05_wz" && player->isLord()) {
+            int turn = player->getMark("Global_TurnCount");
+            if (turn == 1)
+                room->doLightbox("WzBossLevel", 2000, 100);
         }
+
         if (!player->faceUp()) {
             room->setPlayerFlag(player, "-Global_FirstRound");
             player->turnOver();
@@ -373,8 +380,9 @@ bool GameRule::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *play
                 room->removePlayerMark(player, "Global_PreventPeach");
             }
 
-            if (peach == NULL)
+            if (peach == NULL) {
                 break;
+            }
             room->useCard(CardUseStruct(peach, player, dying.who));
         }
         break;
@@ -389,6 +397,7 @@ bool GameRule::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *play
     }
     case ConfirmDamage: {
         DamageStruct damage = data.value<DamageStruct>();
+
         if (damage.card && damage.to->getMark("SlashIsDrank") > 0) {
             LogMessage log;
             log.type = "#AnalepticBuff";
@@ -1240,23 +1249,31 @@ HulaoPassMode::HulaoPassMode(QObject *parent)
 
 bool HulaoPassMode::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
 {
+    // player could be NULL !!!
     switch (triggerEvent) {
     case StageChange: {
         ServerPlayer *lord = room->getLord();
         room->setPlayerMark(lord, "secondMode", 1);
-        room->changeHero(lord, "shenlvbu2", true, true, false, false);
+        QString newhero = lord->property("hulao_newgeneral").toString();
+        room->changeHero(lord, newhero, true, true, false, false);
+        if (lord->getGeneral2()) {
+            room->changeHero(lord, lord->property("hulao_newgeneral2").toString(), true, true, true, false);
+        }
 
         LogMessage log;
         log.type = "$AppendSeparator";
         room->sendLog(log);
 
         log.type = "#HulaoTransfigure";
-        log.arg = "#shenlvbu1";
-        log.arg2 = "#shenlvbu2";
+        //log.arg = "#shenlvbu1";
+        //log.arg2 = "#shenlvbu2";
+        log.arg = QString("#%1").arg(lord->getGeneralName());
+        log.arg2 = QString("#%1").arg(lord->property("hulao_newgeneral").toString());
+
         room->sendLog(log);
 
         //room->doLightbox("$StageChange", 5000);
-        room->doSuperLightbox("shenlvbu2", "StageChange");
+        room->doSuperLightbox(newhero, "StageChange");
 
         QList<const Card *> tricks = lord->getJudgingArea();
         if (!tricks.isEmpty()) {
@@ -1572,3 +1589,48 @@ bool BasaraMode::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *pl
     return false;
 }
 
+TransformMode::TransformMode(QObject *parent)
+    : GameRule(parent)
+{
+    setObjectName("transform_mode");
+    events << TurnStart;
+}
+
+// you can't just raise the priority, or it will trigger before general's skills.
+// int TransformMode::getPriority(TriggerEvent) const
+// {
+//     return 15;
+// }
+
+bool TransformMode::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
+{
+    switch (triggerEvent) {
+    case TurnStart: {
+        player = room->getCurrent();
+        if (room->getTag("FirstRound").toBool()) {
+            room->setTag("FirstRound", false);
+            room->setPlayerFlag(player, "Global_FirstRound");
+        }
+
+        LogMessage log;
+        log.type = "$AppendSeparator";
+        room->sendLog(log);
+        room->addPlayerMark(player, "Global_TurnCount");
+        room->setPlayerMark(player, "damage_point_round", 0);
+
+        if (!player->faceUp()) {
+            room->setPlayerFlag(player, "-Global_FirstRound");
+            player->turnOver();
+        } else if (player->isAlive()) {
+            room->transformPlayer(player);
+            player->play();
+        }
+
+        return false;
+    }
+    default:
+        break;
+    }
+
+    return GameRule::trigger(triggerEvent, room, player, data);
+}

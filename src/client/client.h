@@ -36,12 +36,14 @@ public:
         AskForShowOrPindian = 0x0C,
         AskForGeneralTaken = 0x0D,
         AskForArrangement = 0x0E,
+        AskForPlayersChoose = 0x0F,
+        AskForSimpleChoice = 0x10,
 
-        RespondingUse = 0x11,
-        RespondingForDiscard = 0x21,
-        RespondingNonTrigger = 0x31,
+        RespondingUse = 0x0101,
+        RespondingForDiscard = 0x0201,
+        RespondingNonTrigger = 0x0301,
 
-        ClientStatusBasicMask = 0x0F
+        ClientStatusBasicMask = 0x00FF
     };
 
     explicit Client(QObject *parent, const QString &filename = QString());
@@ -57,6 +59,7 @@ public:
 
     // other client requests
     void requestSurrender();
+    void requestUpdate();
 
     void disconnectFromHost();
     void replyToServer(QSanProtocol::CommandType command, const QVariant &arg = QVariant());
@@ -67,6 +70,7 @@ public:
     Status getStatus() const;
     int alivePlayerCount() const;
     void onPlayerInvokeSkill(bool invoke);
+    void onPlayerSimpleChoice(bool ok);
     void onPlayerDiscardCards(const Card *card);
     void onPlayerReplyYiji(const Card *card, const Player *to);
     void onPlayerReplyGuanxing(const QList<int> &up_cards, const QList<int> &down_cards);
@@ -94,6 +98,7 @@ public:
     void checkVersion(const QVariant &server_version);
     void setup(const QVariant &setup_str);
     void networkDelayTest(const QVariant &);
+
     void addPlayer(const QVariant &player_info);
     void removePlayer(const QVariant &player_name);
     void startInXs(const QVariant &);
@@ -139,12 +144,16 @@ public:
     void takeAG(const QVariant &take_str);
     void clearAG(const QVariant &);
 
+    // custom data methods
+    void setCustomData(const QVariant &custom_data);
+
     //interactive server callbacks
     void askForCardOrUseCard(const QVariant &);
     void askForAG(const QVariant &);
     void askForSinglePeach(const QVariant &);
     void askForCardShow(const QVariant &);
     void askForSkillInvoke(const QVariant &);
+    void askForSimpleChoice(const QVariant &);
     void askForChoice(const QVariant &);
     void askForDiscard(const QVariant &);
     void askForExchange(const QVariant &);
@@ -163,6 +172,14 @@ public:
     void askForSurrender(const QVariant &);
     void askForLuckCard(const QVariant &);
     void handleGameEvent(const QVariant &);
+    void askForTemplateCardChosen(const QVariant &);
+
+    // custom
+    void askForPlayersChosen(const QVariant &players);
+
+    // update
+    void askForUpdateGame(const QVariant &);
+
     //3v3 & 1v1
     void askForOrder(const QVariant &);
     void askForRole3v3(const QVariant &);
@@ -222,6 +239,13 @@ public:
     QList<const Card *> discarded_list;
     QStringList players_to_choose;
     int m_bossLevel;
+    QList<int> m_enabled_list;
+
+    // custom data
+    QString custom_str1;
+    QString custom_str2;
+    int custom_int1;
+    int custom_int2;
 
 public slots:
     void signup();
@@ -230,6 +254,8 @@ public slots:
     void onPlayerChooseCard(int card_id = -2);
     void onPlayerChooseAG(int card_id);
     void onPlayerChoosePlayer(const Player *player);
+    void onPlayerChoosePlayers(const QList<const Player *> &players);
+    void onPlayerChooseTemplateCard(const QString &card_name);
     void trust();
     void addRobot(int num);
 
@@ -284,7 +310,7 @@ private slots:
     void onPlayerChooseRole3v3();
 
 signals:
-    void version_checked(const QString &version_number, const QString &mod_name);
+    void version_checked(const QString &version_number, const QString &mod_name, const bool enable_update);
     void server_connected();
     void error_message(const QString &msg);
     void player_added(ClientPlayer *new_player);
@@ -299,6 +325,7 @@ signals:
     void roles_got(const QString &scheme, const QStringList &roles);
     void directions_got();
     void orders_got(QSanProtocol::Game3v3ChooseOrderCommand reason);
+    void template_cards_got(const QStringList &cards_name, const QString &reason);
 
     void seats_arranged(const QList<const ClientPlayer *> &seats);
     void hp_changed(const QString &who, int delta, DamageStruct::Nature nature, bool losthp);
@@ -354,6 +381,7 @@ signals:
     void start_in_xs();
 
     void skill_updated(const QString &skill_name);
+
 };
 
 extern Client *ClientInstance;

@@ -25,9 +25,28 @@ sgs.ai_skill_invoke.qianxi = function(self, data)
 	return false
 end
 
+sgs.ai_skill_cardchosen.qianxi = function(self, who)
+	local color = self.player:getTag("qianxi"):toString()
+	local cards = sgs.QList2Table(who:getEquips())
+	if #cards > 1 then
+		self:sortByKeepValue(cards)
+	end
+	for _, card in ipairs(cards) do
+        if sgs.getCardColorString(card) == color then
+            return card
+        end
+    end
+	return nil
+end
+
 sgs.ai_skill_playerchosen.qianxi = function(self, targets)
 	local enemies = {}
-	local slash = self:getCard("Slash") or sgs.Sanguosha:cloneCard("slash")
+	local slash = self:getCard("Slash")
+	if not slash then
+		slash = sgs.Sanguosha:cloneCard("slash")
+		slash:deleteLater()
+	end
+	
 	local isRed = (self.player:getTag("qianxi"):toString() == "red")
 
 	for _, target in sgs.qlist(targets) do
@@ -94,6 +113,50 @@ sgs.ai_skill_invoke.zishou = function(self, data)
 	end
 
 	return self:ImitateResult_DrawNCards(self.player, self.player:getVisibleSkillList(true)) - can_save_card_num + peach_num  <= chance_value
+end
+
+sgs.ai_skill_has_good_slash_target = function(self, nature_slash, distance_limit)
+	if nature_slash == nil then nature_slash = true end
+	if distance_limit == nil then distance_limit = true end
+	
+	local slash
+	if nature_slash then
+		slash = sgs.Sanguosha:cloneCard("slash")
+	else
+		slash = sgs.Sanguosha:cloneCard("thunder_slash")
+	end
+	slash:deleteLater()
+	
+	self:sort(self.enemies, "defense")
+	for _,enemy in ipairs(self.enemies) do
+		local def = sgs.getDefenseSlash(enemy, self)
+		local eff = self:slashIsEffective(slash, enemy) and sgs.isGoodTarget(enemy, self.enemies, self)
+
+		if self.player:canSlash(enemy, slash, distance_limit) and not self:slashProhibit(slash, enemy) and def < 6 and eff then 
+			return enemy
+		end
+	end
+	return nil
+end
+
+sgs.ai_skill_invoke.dangxian = function(self, data)
+	if self:hasCrossbowEffect() then return true end
+	
+	local target = sgs.ai_skill_has_good_slash_target(self, false, false)
+	if target == nil or not target:isAlive() then return false end
+	
+	local has_fuli = self.player:getMark("@laoji") > 0 and self.player:hasSkill("fuli")
+	local self_low_defence = self.player:getHp() < 3 and not has_fuli 
+	local selfSub = self.player:getHp() - self.player:getHandcardNum()
+	if not self_low_defence and selfSub > 0 and self.player:getHandcardNum() < 4 then 
+		return true
+	end
+	
+	if target:getHp() < 2 and self:isWeak(target) then return true end 
+	
+	local selfDef = sgs.getDefense(self.player)
+	if not self_low_defence and selfDef >= 6 then return true end
+	return false
 end
 
 sgs.ai_skill_invoke.fuli = true
@@ -254,6 +317,9 @@ function sgs.ai_cardneed.jiangchi(to, card, self)
 end
 
 sgs.ai_skill_choice.jiangchi = function(self, choices)
+	local hppoint = self.player:getMaxHp() - self.player:getHp()
+	if hppoint > 2 then return "chi" end
+	
 	local target = 0
 	local goodtarget = 0
 	local slashnum = 0
@@ -287,12 +353,14 @@ sgs.ai_skill_choice.jiangchi = function(self, choices)
 	if slashnum > 1 or (slashnum > 0 and goodtarget > 0) then needburst = 1 end
 	self:sort(self.enemies,"defenseSlash")
 	local can_save_card_num = self.player:getMaxCards() - self.player:getHandcardNum()
-	if target == 0 or can_save_card_num > 1 or self.player:isSkipped(sgs.Player_Play) then return "jiang" end
-	if self:needBear() then return "jiang" end
+	--if target == 0 or can_save_card_num > 1 or self.player:isSkipped(sgs.Player_Play) then return "jiang" end
+	if target == 0 or slashnum == 0 or self:needBear() then return "jiang" end
+	--if self:needBear() then return "jiang" end
 
 	for _,enemy in ipairs(self.enemies) do
 		local def = sgs.getDefense(enemy)
 		local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+		slash:deleteLater()
 		local eff = self:slashIsEffective(slash, enemy) and sgs.isGoodTarget(enemy, self.enemies, self)
 
 		if self:slashProhibit(slash, enemy) then
@@ -300,6 +368,8 @@ sgs.ai_skill_choice.jiangchi = function(self, choices)
 		end
 	end
 
+	if hppoint > 1 and can_save_card_num < 1 and math.random(0, 10) > 4 then return "jiang" end
+	if hppoint > 1 or math.random(0, 10) > 4 then return "chi" end
 	return "cancel"
 end
 
@@ -790,6 +860,7 @@ function sgs.ai_cardsview_valuable.chunlao(self, class_name, player)
 		local dying = player:getRoom():getCurrentDyingPlayer()
 		if dying then
 			local analeptic = sgs.Sanguosha:cloneCard("analeptic")
+			analeptic:deleteLater()
 			if dying:isLocked(analeptic) then return nil end
 			return "@ChunlaoWineCard=" .. tostring(player:getPile("wine"):first())
 		end
@@ -809,30 +880,39 @@ sgs.chunlao_keep_value = {
 }
 
 sgs.ai_skill_invoke.zhiyu = function(self, data)
-	local manjuan = hasManjuanEffect(self.player)
-	local damage = data:toDamage()
-	local cards = self.player:getCards("h")
-	cards = sgs.QList2Table(cards)
-	local first
-	local difcolor = 0
-	for _,card in ipairs(cards)  do
-		if not first then first = card end
-		if (first:isRed() and card:isBlack()) or (card:isRed() and first:isBlack()) then
-			difcolor = 1
-			break
-		end
-	end
-	if difcolor == 0 and damage.from then
-		if self:isFriend(damage.from) and (not damage.from:isKongcheng() or manjuan) then
-			return false
-		elseif self:isEnemy(damage.from) then
-			if manjuan and self.player:isKongcheng() then return false end
-			if self:doNotDiscard(damage.from, "h") and not damage.from:isKongcheng() then return false end
-			return true
-		end
-	end
-	if manjuan then return false end
+	--local manjuan = hasManjuanEffect(self.player)
+	--local damage = data:toDamage()
+	--local cards = self.player:getCards("h")
+	--cards = sgs.QList2Table(cards)
+	--local first
+	--local difcolor = 0
+	--for _,card in ipairs(cards)  do
+	--	if not first then first = card end
+	--	if (first:isRed() and card:isBlack()) or (card:isRed() and first:isBlack()) then
+	--		difcolor = 1
+	--		break
+	--	end
+	--end
+	--if difcolor == 0 and damage.from then
+	--	if self:isFriend(damage.from) and (not damage.from:isKongcheng() or manjuan) then
+	--		return false
+	--	elseif self:isEnemy(damage.from) then
+	--		if manjuan and self.player:isKongcheng() then return false end
+	--		if self:doNotDiscard(damage.from, "h") and not damage.from:isKongcheng() then return false end
+	--		return true
+	--	end
+	--end
+	--if manjuan then return false end
 	return true
+end
+
+sgs.ai_skill_playerchosen.zhiyu = function(self, targets)
+	local targetlist = sgs.QList2Table(targets)
+    self:sort(targetlist, "hp")
+    for _, target in ipairs(targetlist) do
+        if self:isEnemy(target) then return target end
+    end
+	return nil
 end
 
 local function get_handcard_suit(cards)
@@ -868,6 +948,7 @@ qice_skill.getTurnUseCard = function(self)
 	for i = 1, #qicetricks do
 		local forbiden = qicetricks[i]
 		forbid = sgs.Sanguosha:cloneCard(forbiden, suit)
+		forbid:deleteLater()
 		if self.player:isCardLimited(forbid, sgs.Card_MethodUse, true) or not forbid:isAvailable(self.player) then
 			if forbid:isKindOf("AOE") then aoe_available = false end
 			if forbid:isKindOf("GlobalEffect") then ge_available = false end
@@ -897,11 +978,13 @@ qice_skill.getTurnUseCard = function(self)
 
 	if #allcard > 1 then sgs.ai_use_priority.QiceCard = 0 end
 	local godsalvation = sgs.Sanguosha:cloneCard("god_salvation", suit, 0)
+	godsalvation:deleteLater()
 	if self.player:getHandcardNum() < 3 then
 		if aoe_available then
 			for i = 1, #aoenames do
 				local newqice = aoenames[i]
 				aoe = sgs.Sanguosha:cloneCard(newqice)
+				aoe:deleteLater()
 				if self:getAoeValue(aoe) > 0 then
 					local parsed_card = sgs.Card_Parse("@QiceCard=" .. table.concat(allcard, "+") .. ":" .. newqice)
 					return parsed_card
@@ -923,6 +1006,7 @@ qice_skill.getTurnUseCard = function(self)
 			for i = 1, #aoenames do
 				local newqice = aoenames[i]
 				aoe = sgs.Sanguosha:cloneCard(newqice)
+				aoe:deleteLater()
 				if self:getAoeValue(aoe) > 0 then
 					local parsed_card = sgs.Card_Parse("@QiceCard=" .. table.concat(allcard, "+") .. ":" .. newqice)
 					return parsed_card
@@ -942,6 +1026,7 @@ qice_skill.getTurnUseCard = function(self)
 		for i = 1, #aoenames do
 			local newqice = aoenames[i]
 			aoe = sgs.Sanguosha:cloneCard(newqice)
+			aoe:deleteLater()
 			if self:getAoeValue(aoe) > -5 and caocao and self:isFriend(caocao) and caocao:getHp() > 1 and not self:willSkipPlayPhase(caocao)
 				and not self.player:hasSkill("jueqing") and self:aoeIsEffective(aoe, caocao, self.player) then
 				local parsed_card = sgs.Card_Parse("@QiceCard=" .. table.concat(allcard, "+") .. ":" .. newqice)
@@ -968,6 +1053,7 @@ sgs.ai_skill_use_func.QiceCard = function(card, use, self)
 	local qicecard = sgs.Sanguosha:cloneCard(userstring, card:getSuit(), card:getNumber())
 	qicecard:setSkillName("qice")
 	self:useTrickCard(qicecard, use)
+	qicecard:deleteLater()
 	if use.card then
 		for _, acard in sgs.qlist(self.player:getHandcards()) do
 			if isCard("Peach", acard, self.player) and self.player:getHandcardNum() > 1 and self.player:isWounded()
@@ -981,3 +1067,19 @@ sgs.ai_skill_use_func.QiceCard = function(card, use, self)
 end
 
 sgs.ai_use_priority.QiceCard = 1.5
+
+sgs.ai_skill_use["@@yjyaowu"] = function(self, prompt)
+	local equipid = self:getCardRandomly(self.player, "e")
+	local target = nil
+	local dfd = self:getCardsNum("Slash")
+	self:sort(self.enemies, "defense")
+	for _, enemy in ipairs(self.enemies) do
+		if not (self.player:getHp() < 3 and dfd < self:getAllCardsNum(enemy, "Slash")) then 
+			target = enemy
+			break
+		end
+	end
+	
+	if not target then return "." end
+	return "@YJYaowuCard=" .. equipid .. "->" .. target:objectName()
+end

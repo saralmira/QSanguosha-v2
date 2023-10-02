@@ -148,7 +148,7 @@ public:
 
     bool triggerable(const ServerPlayer *target) const
     {
-        return target != NULL && target->isAlive() && target->hasLordSkill(this) && target->getMark("xingshuai_act") == 0 && hasWeiGens(target);
+        return target != NULL && target->isAlive() && target->hasLordSkill(this) && target->getMark(limit_mark) > 0 && hasWeiGens(target);
     }
 
     bool trigger(TriggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
@@ -156,7 +156,6 @@ public:
         DyingStruct dying = data.value<DyingStruct>();
         if (dying.who != player)
             return false;
-
 
         if (player->askForSkillInvoke(this, data)) {
             if (!player->isLord() && player->hasSkill("weidi")) {
@@ -172,7 +171,7 @@ public:
             }
 
             room->setPlayerMark(player, limit_mark, 0);
-            player->setMark("xingshuai_act", 1);
+            room->setPlayerMark(player, "@xingshuai_after", 1);
 
             QList<ServerPlayer *> weis = room->getLieges("wei", player);
             QList<ServerPlayer *> invokes;
@@ -1614,20 +1613,20 @@ public:
         
     }
 
-    bool isEnabledAtPlay(const Player *player) const
+    bool isEnabledAtPlay(const Player *) const
     {
-        QList<const Player *> sib = player->getAliveSiblings();
-        if (player->isAlive())
-            sib << player;
-
-        bool noround = true;
-
-        foreach (const Player *p, sib) {
-            if (p->getPhase() != Player::NotActive) {
-                noround = false;
-                break;
-            }
-        }
+        //QList<const Player *> sib = player->getAliveSiblings();
+        //if (player->isAlive())
+        //    sib << player;
+        //
+        //bool noround = true;
+        //
+        //foreach (const Player *p, sib) {
+        //    if (p->getPhase() != Player::NotActive) {
+        //        noround = false;
+        //        break;
+        //    }
+        //}
 
         return true; // for DIY!!!!!!!
     }

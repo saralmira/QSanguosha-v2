@@ -261,6 +261,28 @@ DelayedTrick::DelayedTrick(Suit suit, int number, bool movable)
 void DelayedTrick::onUse(Room *room, const CardUseStruct &card_use) const
 {
     CardUseStruct use = card_use;
+
+    if (room->getMode() == "05_wz"
+        && use.card->isKindOf("DelayedTrick")
+        && (use.from->isCardLimited(use.card, Card::MethodUse)
+            || (!use.from->getHandPile().contains(getEffectiveId())
+                && /*use.from->askForSkillInvoke("delayedtrick_recast", QVariant::fromValue(use))*/
+                use.to.isEmpty()))) {
+        CardMoveReason reason(CardMoveReason::S_REASON_RECAST, use.from->objectName());
+        reason.m_eventName = "delayedtrick_recast";
+        room->moveCardTo(use.card, use.from, NULL, Player::DiscardPile, reason);
+        use.from->broadcastSkillInvoke("@recast");
+
+        LogMessage log;
+        log.type = "#UseCard_Recast";
+        log.from = use.from;
+        log.card_str = use.card->toString();
+        room->sendLog(log);
+
+        use.from->drawCards(1, "delayedtrick_recast");
+        return;
+    }
+
     WrappedCard *wrapped = Sanguosha->getWrappedCard(this->getEffectiveId());
     use.card = wrapped;
 
@@ -391,6 +413,24 @@ void DelayedTrick::onNullified(ServerPlayer *target) const
         CardMoveReason reason(CardMoveReason::S_REASON_NATURAL_ENTER, target->objectName());
         room->throwCard(this, reason, NULL);
     }
+}
+
+bool DelayedTrick::targetsFeasible(const QList<const Player *> &targets, const Player *Self) const
+{
+    if (target_fixed)
+        return true;
+    else if (Self->getGameMode() == "05_wz")
+        return targets.length() <= 1;
+    else
+        return !targets.isEmpty();
+}
+
+bool DelayedTrick::isAvailable(const Player *player) const
+{
+    QString mode = player->getGameMode();
+    if (mode == "05_wz" && !player->isCardLimited(this, Card::MethodRecast))
+        return true;
+    return Card::isAvailable(player);
 }
 
 Weapon::Weapon(Suit suit, int number, int range)

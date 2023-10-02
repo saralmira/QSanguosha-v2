@@ -14,6 +14,7 @@ public:
 
     virtual bool listen();
     virtual void daemonize();
+    static bool isPortOccupied(ushort port);
 
 private slots:
     void processNewConnection();

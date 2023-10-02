@@ -475,6 +475,7 @@ local lianli_slash_skill={name="lianli-slash"}
 table.insert(sgs.ai_skills, lianli_slash_skill)
 lianli_slash_skill.getTurnUseCard = function(self) --考虑主动使用连理杀
 	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+	slash:deleteLater()
 	if self.player:getMark("@tied")>0 and slash:isAvailable(self.player) and not self.player:hasFlag("Global_LianliFailed") then
 		return sgs.Card_Parse("@LianliSlashCard=.")
 	end
@@ -496,6 +497,7 @@ sgs.ai_skill_use_func.LianliSlashCard = function(card, use, self)
 	end
 	local slash = sgs.Sanguosha:cloneCard("slash")
 	self:useCardSlash(slash, dummy_use)
+	slash:deleteLater()
 	if dummy_use.card and dummy_use.to:length() > 0 then
 		use.card = card
 		for _, p in sgs.qlist(dummy_use.to) do
@@ -799,9 +801,12 @@ end
 ]]--
 sgs.ai_cardshow.lexue = function(self, requestor)
 	local cards = self.player:getHandcards()
+	local result = nil
 	if self:isFriend(requestor) then
 		for _, card in sgs.qlist(cards) do
-			if card:isKindOf("Peach") and requestor:isWounded() then
+			if card:isKindOf("ExNihilo") then
+				result = card
+			elseif card:isKindOf("Peach") and requestor:isWounded() then
 				result = card
 			elseif card:isNDTrick() then
 				result = card
@@ -814,10 +819,16 @@ sgs.ai_cardshow.lexue = function(self, requestor)
 		end
 	else
 		for _, card in sgs.qlist(cards) do
-			if card:isKindOf("Jink") then
+			if card:isKindOf("Slash") then
 				result = card
-				return result
+			elseif card:isNDTrick() then
+				result = card
 			end
+			--if card:isKindOf("Jink") then
+			--	result = card
+			--	return result
+			--end
+			if result then return result end
 		end
 	end
 	return self.player:getRandomHandCard()
@@ -948,6 +959,7 @@ sgs.ai_need_damaged.toudu = function(self, attacker, player)
 	if peaches >= player:getLostHp() and peaches > 0 then return true end
 	if self.player:objectName() == player:objectName() and player:getHp() > 1 then
 		local slash = sgs.Sanguosha:cloneCard("Slash", sgs.Card_NoSuit, 0)
+		slash:deleteLater()
 		for _, target in ipairs(self.enemies) do
 			if self:isEnemy(target) and self:slashIsEffective(slash, target) and not self:getDamagedEffects(target, self.player, true)
 				and getCardsNum("Jink", target, self.player) < 1 and (target:getHp() == 1 or self:hasHeavySlashDamage(player, nil, target) and target:getHp() == 2) then
@@ -965,43 +977,100 @@ end
 local yishe_skill = {name = "ytyishe"}
 table.insert(sgs.ai_skills, yishe_skill)
 yishe_skill.getTurnUseCard = function(self)
-	if self:needBear() then return end
 	if not self.player:hasUsed("YtYisheCard") then
 		return sgs.Card_Parse("@YtYisheCard=.")
 	end
-	local n = self.player:getHandcardNum()
-	if n < 1 then return end
-	local cards = self.player:getHandcards()
-	cards = sgs.QList2Table(cards)
-	local usecards = {}
-	local getOverflow = math.max(self:getOverflow(), 0)
-	local discards = self:askForDiscard("dummyreason", math.min(getOverflow, 5), math.min(getOverflow, 5))
-	if self:needKongcheng() and n < 6 then
-		for _, card in ipairs(cards) do
-			table.insert(usecards, card:getId())
-		end
-	else
-		for _, card in ipairs(discards) do
-			table.insert(usecards, card)
-		end
-	end
-	if #usecards > 0 then
-		return sgs.Card_Parse("@YtYisheCard=" .. table.concat(usecards, "+"))
-	end
-	return nil
 end
 
 sgs.ai_skill_use_func.YtYisheCard = function(card, use, self)
-	sgs.ai_use_priority.YtYisheCard = 10
-	if self.player:getPile("ytrice"):isEmpty() then
-		sgs.ai_use_priority.YtYisheCard = 0
-		if self.player:hasUsed("YtYisheCard") then
-			use.card = card
-			return
-		end
-	else
-		if not self.player:hasUsed("YtYisheCard") then use.card = card return end
+	self:sort(self.friends_noself, "handcard")
+	for _, friend in ipairs(self.friends_noself) do
+		if friend:hasSkill("kongcheng") or friend:getHandcardNum() > self.player:getHandcardNum() then continue end
+		use.card = sgs.Card_Parse("@YtYisheCard=.")
+		if use.to then use.to:append(friend) end
+		return
 	end
+end
+
+sgs.ai_use_value.YtYisheCard = 5.1
+sgs.ai_card_intention.YtYisheCard = 0
+	
+local midao_skill = {name = "ytmidao"}
+table.insert(sgs.ai_skills, midao_skill)
+midao_skill.getTurnUseCard = function(self)
+	if self.player:hasUsed("YtMidaoCard") then return nil end
+	local canobtaincardnum = 0
+	local maxhandcardnum = 0
+	local playerhandcardnum = self.player:getHandcardNum()
+	for _, friend in ipairs(self.friends_noself) do
+		local handcardnum = friend:getHandcardNum()
+		if handcardnum > playerhandcardnum then 
+			canobtaincardnum = canobtaincardnum + 1
+		end
+		if handcardnum - 1 > maxhandcardnum then
+			maxhandcardnum = handcardnum - 1
+		end
+	end
+	for _, enemy in ipairs(self.enemies) do
+		local handcardnum2 = enemy:getHandcardNum()
+		if handcardnum2 > playerhandcardnum then 
+			canobtaincardnum = canobtaincardnum + 1
+		end
+		if handcardnum2 - 1 > maxhandcardnum then
+			maxhandcardnum = handcardnum2 - 1
+		end
+	end
+	if canobtaincardnum + playerhandcardnum > maxhandcardnum then
+		-- 要掉血的情况
+		canobtaincardnum = canobtaincardnum - 2
+		local playertotalhp = self.player:getHp() + self:getCardsNum("Peach")
+		if self:getCardsNum("Analeptic") > 0 then playertotalhp = playertotalhp + 1 end
+		if playertotalhp < 2 or canobtaincardnum < 0 then return nil end
+		if playertotalhp < 3 and canobtaincardnum < 1 then return nil end
+	end
+	
+	return sgs.Card_Parse("@YtMidaoCard=.")
+end
+
+sgs.ai_skill_use_func.YtMidaoCard = function(card, use, self)
+	use.card = sgs.Card_Parse("@YtMidaoCard=.")
+end
+
+sgs.ai_use_value.YtMidaoCard = 5.1
+sgs.ai_card_intention.YtMidaoCard = 0
+
+local ytpudu_skill = {name = "ytpudu"}
+table.insert(sgs.ai_skills, ytpudu_skill)
+ytpudu_skill.getTurnUseCard = function(self)
+	if self.player:getMark("@ytpudu") == 0 then return end
+	
+	local goodvalue = self.player:getHandcardNum()
+	local badvalue = 0
+	local players = self.room:getOtherPlayers(self.player)
+	for _, p in sgs.qlist(players) do
+		if self:isFriend(p) then
+			goodvalue = goodvalue + p:getHandcardNum()
+		else
+			badvalue = badvalue + p:getHandcardNum()
+		end
+	end
+	local averagevalue = (goodvalue + badvalue) / (players:length() + 1)
+	-- 牌太少，没有价值
+	if averagevalue < 2.1 then return end
+	local gainvalue = (badvalue - goodvalue) / #self.friends
+	-- 牌差不够，没有价值
+	-- 典型情况：开局4v4，己方全部少1牌，不触发，3.5*4 < 12+2.5；己方全部少2牌，触发，3*4 > 8+2.5
+	-- 典型情况：开局2v2，己方全部少1牌，不触发，3.5*2 < 6+1.5；己方全部少2牌，触发，3*2 > 4+1.5
+	-- 典型情况：开局2v3，己方全部少1牌，不触发，3.6*2 < 6+1.5；己方全部少2牌，触发，3.2*2 > 4+1.5
+	if gainvalue < 1.0 or averagevalue * #self.friends < goodvalue + (#self.friends + 1) / 2 then return end
+	
+	-- 轮次越高，概率越高
+	if math.random() * 10 > gainvalue + 2 * sgs.turncount then return end
+	return sgs.Card_Parse("@YtPuduCard=.")
+end
+
+sgs.ai_skill_use_func.YtPuduCard = function(card, use, self)
+	use.card = sgs.Card_Parse("@YtPuduCard=.")
 end
 
 sgs.ai_skill_choice.ytyishe_ask = function(self,choices)
@@ -1089,12 +1158,12 @@ end
 sgs.ai_skill_use_func.TaichenCard = function(card, use, self)
 	local target, card_str
 	local targets, friends, enemies = {}, {}, {}
-	local weapon = self.player:getWeapon()
+	local weapon = self.player:getWeapon() or self.player:getArmor()
 
 	local hcards = self.player:getHandcards()
 	local hand_weapon
 	for _, hcard in sgs.qlist(hcards) do
-		if hcard:isKindOf("Weapon") then
+		if hcard:isKindOf("Weapon") or hcard:isKindOf("Armor") then
 			hand_weapon = true
 			card_str = "@TaichenCard=" .. hcard:getId()
 		end
@@ -1181,7 +1250,7 @@ sgs.ai_skill_use_func.TaichenCard = function(card, use, self)
 	end
 end
 
-sgs.ai_cardneed.taichen = sgs.ai_cardneed.weapon
+sgs.ai_cardneed.taichen = sgs.ai_cardneed.weapon_armor
 sgs.taichen_keep_value = sgs.qiangxi_keep_value
 sgs.ai_use_priority.TaichenCard = 3.6
 sgs.ai_card_intention.TaichenCard = function(self,card, from, tos)

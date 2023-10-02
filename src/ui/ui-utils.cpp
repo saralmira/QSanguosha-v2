@@ -4,7 +4,7 @@
 #include FT_BITMAP_H
 #include FT_OUTLINE_H
 
-QImage QSanUiUtils::produceShadow(const QImage &image, QColor shadowColor, int radius, double decade)
+void QSanUiUtils::produceShadow(QPainter *painter, const QImage &image, QColor shadowColor, int radius, double decade, QRect &pos)
 {
     const uchar *oldImage = image.bits();
     int cols = image.width();
@@ -45,7 +45,62 @@ QImage QSanUiUtils::produceShadow(const QImage &image, QColor shadowColor, int r
 #undef _NEW_PIXEL
 #undef _OLD_PIXEL
     QImage result(newImage, cols, rows, QImage::Format_ARGB32);
-    return result;
+    // now, overlay foreground on shadow
+    painter->drawImage(pos.topLeft(), result);
+    painter->drawImage(pos.topLeft(), image); //pos, image);
+    delete[] newImage;
+    //return result;
+}
+
+void QSanUiUtils::produceShadow(QGraphicsPixmapItem *pixmapItem, const QImage &image, QColor shadowColor, int radius, double decade, QRect &pos)
+{
+    const uchar *oldImage = image.bits();
+    int cols = image.width();
+    int rows = image.height();
+    int alpha = shadowColor.alpha();
+    uchar *newImage = new uchar[cols * rows * 4];
+#define _NEW_PIXEL_CHANNEL(x, y, channel) (newImage[(y * cols + x) * 4 + channel])
+#define _NEW_PIXEL(x, y) _NEW_PIXEL_CHANNEL(x, y, 3)
+#define _OLD_PIXEL(x, y) (oldImage[(y * cols + x) * 4 + 3])
+    for (int y = 0; y < rows; y++) {
+        for (int x = 0; x < cols; x++) {
+            _NEW_PIXEL_CHANNEL(x, y, 0) = shadowColor.blue();
+            _NEW_PIXEL_CHANNEL(x, y, 1) = shadowColor.green();
+            _NEW_PIXEL_CHANNEL(x, y, 2) = shadowColor.red();
+            _NEW_PIXEL_CHANNEL(x, y, 3) = 0;
+        }
+    }
+
+    for (int y = 0; y < rows; y++) {
+        for (int x = 0; x < cols; x++) {
+            uchar oldVal = _OLD_PIXEL(x, y);
+            if (oldVal == 0) continue;
+            for (int dy = -radius; dy <= radius; dy++) {
+                for (int dx = -radius; dx <= radius; dx++) {
+                    int wx = x + dx;
+                    int wy = y + dy;
+                    int dist = dx * dx + dy * dy;
+                    if (wx < 0 || wy < 0 || wx >= cols || wy >= rows) continue;
+                    if (dx * dx + dy * dy > radius * radius) continue;
+                    int newVal = alpha - decade * dist;
+                    Q_ASSERT((wy * cols + wx) * 4 < cols * rows * 4);
+                    _NEW_PIXEL(wx, wy) = (uchar)qMax((int)_NEW_PIXEL(wx, wy), newVal);
+                }
+            }
+        }
+    }
+#undef _NEW_PIXEL_CHANNEL
+#undef _NEW_PIXEL
+#undef _OLD_PIXEL
+    QImage result(newImage, cols, rows, QImage::Format_ARGB32);
+    // now, overlay foreground on shadow
+    QPixmap pixmap = QPixmap::fromImage(result);
+    QPainter shadowPainter(&pixmap);
+    shadowPainter.drawImage(0, 0, image);
+    pixmapItem->setPixmap(pixmap);
+    pixmapItem->setPos(pos.x(), pos.y());
+    delete[] newImage;
+    //return result;
 }
 
 void QSanUiUtils::makeGray(QPixmap &pixmap)

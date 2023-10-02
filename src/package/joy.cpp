@@ -91,6 +91,9 @@ public:
                     room->sendLog(log);
                     room->damage(DamageStruct(shit, player, player));
                     break;
+
+                default:
+                    break;
                 }
 
                 if (player->isDead())

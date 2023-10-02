@@ -24,6 +24,8 @@
 #include "zombie-scenario.h"
 #include "fancheng-scenario.h"
 
+#define VERSION_NUMBER_BUILD "20230408"
+
 Engine *Sanguosha = NULL;
 
 int Engine::getMiniSceneCounts()
@@ -73,7 +75,7 @@ struct ManualSkill
     {
         static const QString prefixes[] = { "boss", "gd", "jg", "jsp", "kof", "neo", "nos", "ol", "sp", "tw", "vs", "yt", "diy" };
 
-        for (int i = 0; i < sizeof(prefixes) / sizeof(QString); ++i) {
+        for (uint i = 0; i < sizeof(prefixes) / sizeof(QString); ++i) {
             QString prefix = prefixes[i];
             if (baseName.startsWith(prefix))
                 baseName.remove(0, prefix.length());
@@ -215,6 +217,9 @@ Engine::Engine(bool isManualMode)
 
 
     QStringList package_names = GetConfigFromLuaState(lua, "package_names").toStringList();
+    //if (!package_names.contains("Hulao")) {
+    //    package_names << "Hulao";
+    //}
     foreach (QString name, package_names)
         addPackage(name);
 
@@ -324,6 +329,7 @@ Engine::Engine(bool isManualMode)
     modes["04_1v3"] = tr("4 players (Hulao Pass)");
     modes["04_boss"] = tr("4 players(Boss)");
     modes["05p"] = tr("5 players");
+    modes["05_wz"] = tr("5 players (Boss)");
     modes["06p"] = tr("6 players");
     modes["06pd"] = tr("6 players (2 renegades)");
     modes["06_3v3"] = tr("6 players (3v3)");
@@ -737,7 +743,7 @@ bool Engine::isGeneralHidden(const QString &general_name) const
     const General *general = getGeneral(general_name);
     if (!general) return true;
     return (general->isHidden() && !removed_hidden_generals.contains(general_name))
-        || extra_hidden_generals.contains(general_name);
+            || extra_hidden_generals.contains(general_name);
 }
 
 WrappedCard *Engine::getWrappedCard(int cardId)
@@ -873,7 +879,7 @@ SkillCard *Engine::cloneSkillCard(const QString &name) const
 #ifndef USE_BUILDBOT
 QString Engine::getVersionNumber() const
 {
-    return "20150926";
+    return VERSION_NUMBER_BUILD;
 }
 #endif
 
@@ -992,6 +998,8 @@ QString Engine::getSetupString() const
         flags.append("A");
     if (Config.DisableChat)
         flags.append("M");
+    if (Config.EnableTransform)
+        flags.append("N");
 
     if (Config.MaxHpScheme == 1)
         flags.append("1");
@@ -1059,6 +1067,8 @@ QString Engine::getRoles(const QString &mode) const
         return "ZN";
     } else if (mode == "04_1v3" || mode == "04_boss") {
         return "ZFFF";
+    } else if (mode == "05_wz") {
+        return "ZFFFF";
     } else if (mode == "08_defense") {
         return "FFFFCCCC";
     }
@@ -1248,6 +1258,32 @@ QStringList Engine::getLimitedGeneralNames(const QString &kingdom) const
     return general_names;
 }
 
+QStringList Engine::getGeneralNamesCustom(bool include_hidden, bool include_banpackages, const QString &kingdom) const
+{
+    QStringList general_names;
+    QHashIterator<QString, const General *> itor(generals);
+    while (itor.hasNext()) {
+        itor.next();
+        const General *gen = itor.value();
+        if ((kingdom.isEmpty() || gen->getKingdom() == kingdom)
+            && (include_hidden || !isGeneralHidden(gen->objectName()))
+            && (include_banpackages || !getBanPackages().contains(gen->getPackage())))
+            general_names << itor.key();
+    }
+
+    // special case for neo standard package
+    if (!include_banpackages && getBanPackages().contains("standard") && !getBanPackages().contains("nostal_standard")) {
+        if (kingdom.isEmpty() || kingdom == "wei")
+            general_names << "zhenji";
+        if (kingdom.isEmpty() || kingdom == "shu")
+            general_names << "zhugeliang";
+        if (kingdom.isEmpty() || kingdom == "wu")
+            general_names << "sunquan" << "sunshangxiang";
+    }
+
+    return general_names;
+}
+
 QStringList Engine::getRandomGenerals(int count, const QSet<QString> &ban_set, const QString &kingdom) const
 {
     QStringList all_generals = getLimitedGeneralNames(kingdom);
@@ -1290,7 +1326,7 @@ QList<int> Engine::getRandomCards() const
         exclude_disaters = !Config.value("3v3/UsingExtension", false).toBool() || Config.value("3v3/ExcludeDisasters", true).toBool();
     }
 
-    if (Config.GameMode == "04_1v3")
+    if (Config.GameMode == "04_1v3" || Config.GameMode == "05_wz")
         exclude_disaters = true;
 
     QList<int> list;

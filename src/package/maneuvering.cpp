@@ -31,7 +31,6 @@ FireSlash::FireSlash(Suit suit, int number)
     : NatureSlash(suit, number, DamageStruct::Fire)
 {
     setObjectName("fire_slash");
-    nature = DamageStruct::Fire;
 }
 
 Analeptic::Analeptic(Card::Suit suit, int number)
@@ -229,7 +228,7 @@ class SilverLionSkill : public ArmorSkill
 public:
     SilverLionSkill() : ArmorSkill("silver_lion")
     {
-        events << DamageInflicted << CardsMoveOneTime;
+        events << PreDamageDone << CardsMoveOneTime;
     }
 
     bool triggerable(const ServerPlayer *target) const
@@ -239,7 +238,7 @@ public:
 
     bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
     {
-        if (triggerEvent == DamageInflicted && ArmorSkill::triggerable(player)) {
+        if (triggerEvent == PreDamageDone && ArmorSkill::triggerable(player)) {
             DamageStruct damage = data.value<DamageStruct>();
             if (damage.damage > 1) {
                 room->setEmotion(player, "armor/silver_lion");
@@ -348,6 +347,11 @@ bool IronChain::targetsFeasible(const QList<const Player *> &targets, const Play
         sub = subcards;
     else
         sub << getEffectiveId();
+
+    if (rec && isSkillOrDummy()) {
+        rec = getSkillName() == "lianhuan";
+    }
+
     foreach (int id, sub) {
         if (Self->getHandPile().contains(id)) {
             rec = false;
@@ -416,7 +420,8 @@ SupplyShortage::SupplyShortage(Card::Suit suit, int number)
 
 bool SupplyShortage::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const
 {
-    if (!targets.isEmpty() || to_select->containsTrick(objectName()) || to_select == Self)
+    if (((Self->getGameMode() == "05_wz" && targets.length() > 1) || !targets.isEmpty())
+        || to_select->containsTrick(objectName()) || to_select == Self)
         return false;
 
     int distance_limit = 1 + Sanguosha->correctCardTarget(TargetModSkill::DistanceLimit, Self, this);

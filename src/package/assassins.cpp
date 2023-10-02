@@ -12,7 +12,7 @@ class Moukui : public TriggerSkill
 public:
     Moukui() : TriggerSkill("moukui")
     {
-        events << TargetSpecified << SlashMissed << CardFinished;
+        events << TargetSpecified << SlashMissed << CardFinished << NullificationUsed;
     }
 
     bool triggerable(const ServerPlayer *target) const
@@ -22,9 +22,9 @@ public:
 
     bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
     {
-        if (triggerEvent == TargetSpecified && TriggerSkill::triggerable(player)) {
+        if (triggerEvent == TargetSpecified && player->hasSkill(this)) {
             CardUseStruct use = data.value<CardUseStruct>();
-            if (!use.card->isKindOf("Slash"))
+            if (!use.card->canCauseDamage(true, true, false))
                 return false;
             foreach (ServerPlayer *p, use.to) {
                 if (player->askForSkillInvoke(this, QVariant::fromValue(p))) {
@@ -43,25 +43,45 @@ public:
                         room->removeTag("MoukuiDiscard");
                         room->throwCard(disc, p, player);
                     }
-                    room->addPlayerMark(p, objectName() + use.card->toString());
+                    room->addPlayerHistory(player, QString("moukui:%1").arg(use.card->toString()));
+                    //use.card->tag[objectName()] = QVariant::fromValue(p);
                 }
             }
         } else if (triggerEvent == SlashMissed) {
             SlashEffectStruct effect = data.value<SlashEffectStruct>();
-            if (effect.to->isDead() || effect.to->getMark(objectName() + effect.slash->toString()) <= 0)
+            if (!effect.slash)
                 return false;
-            if (!effect.from->isAlive() || !effect.to->isAlive() || !effect.to->canDiscard(effect.from, "he"))
+            QString his_key = QString("moukui:%1").arg(effect.slash->toString());
+            if (!player->isAlive() || !player->getHistory(his_key))
                 return false;
-            int disc = room->askForCardChosen(effect.to, effect.from, "he", objectName(), false, Card::MethodDiscard);
+            if (!effect.to->isAlive() || !effect.to->canDiscard(player, "he"))
+                return false;
+            int disc = room->askForCardChosen(effect.to, player, "he", objectName(), false, Card::MethodDiscard);
             room->broadcastSkillInvoke(objectName(), 3);
-            room->throwCard(disc, effect.from, effect.to);
-            room->removePlayerMark(effect.to, objectName() + effect.slash->toString());
-        } else if (triggerEvent == CardFinished) {
-            CardUseStruct use = data.value<CardUseStruct>();
-            if (!use.card->isKindOf("Slash"))
+            room->throwCard(disc, player, effect.to);
+            //effect.slash->tag[objectName()].clear();
+            room->addPlayerHistory(player, his_key, 0);
+        } else if (triggerEvent == NullificationUsed) {
+            CardEffectStruct trickEffect = data.value<CardEffectStruct>();
+            if (!trickEffect.card)
                 return false;
-            foreach(ServerPlayer *p, room->getAllPlayers())
-                room->setPlayerMark(p, objectName() + use.card->toString(), 0);
+            QString his_key = QString("moukui:%1").arg(trickEffect.card->toString());
+            if (!trickEffect.from || !trickEffect.from->isAlive() || !trickEffect.from->getHistory(his_key))
+                return false;
+            if (player->isAlive() || !player->canDiscard(trickEffect.from, "he"))
+                return false;
+            int disc = room->askForCardChosen(player, trickEffect.from, "he", objectName(), false, Card::MethodDiscard);
+            room->broadcastSkillInvoke(objectName(), 3);
+            room->throwCard(disc, trickEffect.from, player);
+            //trickEffect.card->tag[objectName()].clear();
+            room->addPlayerHistory(trickEffect.from, his_key, 0);
+        } else if (triggerEvent == CardFinished) {
+            CardUseStruct card_use = data.value<CardUseStruct>();
+            if (!card_use.card)
+                return false;
+            QString his_key = QString("moukui:%1").arg(card_use.card->toString());
+            if (card_use.from && card_use.from->getHistory(his_key))
+                room->addPlayerHistory(card_use.from, his_key, 0);
         }
 
         return false;

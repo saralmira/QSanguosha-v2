@@ -85,6 +85,8 @@ public:
         emit clicked();
     }
 
+    bool m_setDisabled;
+
 private slots:
     void currentAnimationDestroyed();
 

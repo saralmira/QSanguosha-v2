@@ -174,17 +174,6 @@ protected:
     bool isButtonEnabled(const QString &button_name) const;
 };
 
-class ZhoufuCard : public SkillCard
-{
-    Q_OBJECT
-
-public:
-    Q_INVOKABLE ZhoufuCard();
-
-    bool targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const;
-    void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
-};
-
 class QujiCard : public SkillCard
 {
     Q_OBJECT
@@ -222,6 +211,26 @@ private:
     QString n;
 };
 
+class SanfenCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE SanfenCard();
+
+    bool targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const;
+    bool targetsFeasible(const QList<const Player *> &targets, const Player *Self) const;
+    void use(Room *room, ServerPlayer *player, QList<ServerPlayer *> &targets) const;
+};
+
+class ShuixiCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE ShuixiCard();
+    void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
+};
 
 #endif
 

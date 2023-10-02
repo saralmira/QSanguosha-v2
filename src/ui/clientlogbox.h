@@ -13,7 +13,7 @@ public:
         const QString card_str = QString(), const QString arg = QString(), const QString arg2 = QString());
 
 private:
-    QString bold(const QString &str, QColor color) const;
+    QString bold(const QString &str, QColor &color) const;
 
 public slots:
     void appendLog(const QStringList &log_str);

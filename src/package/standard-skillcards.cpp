@@ -35,7 +35,7 @@ RendeCard::RendeCard()
 void RendeCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const
 {
 
-    if (!source->tag.value("rende_using", false).toBool())
+    //if (!source->tag.value("rende_using", false).toBool())
         room->broadcastSkillInvoke("rende");
 
     ServerPlayer *target = targets.first();
@@ -56,19 +56,21 @@ void RendeCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &tar
     int new_value = old_value + subcards.length();
     room->setPlayerMark(source, "rende", new_value);
 
-    if (old_value < 2 && new_value >= 2)
+    if (old_value < 2 && new_value >= 2) {
         room->recover(source, RecoverStruct(source));
+        //room->askForUseCard(source, "@@rende-basic", "rende-basiccard", -1, Card::MethodUse, true);
+    }
 
     if (room->getMode() == "04_1v3" && source->getMark("rende") >= 2) return;
     if (source->isKongcheng() || source->isDead() || rende_list.isEmpty()) return;
     room->addPlayerHistory(source, "RendeCard", -1);
 
-    source->tag["rende_using"] = true;
-
-    if (!room->askForUseCard(source, "@@rende", "@rende-give", -1, Card::MethodNone))
-        room->addPlayerHistory(source, "RendeCard");
-
-    source->tag["rende_using"] = false;
+    //source->tag["rende_using"] = true;
+    //
+    //if (!room->askForUseCard(source, "@@rende", "@rende-give", -1, Card::MethodNone))
+    //    room->addPlayerHistory(source, "RendeCard");
+    //
+    //source->tag["rende_using"] = false;
 }
 
 YijueCard::YijueCard()
@@ -86,7 +88,7 @@ void YijueCard::use(Room *room, ServerPlayer *guanyu, QList<ServerPlayer *> &tar
     bool success = guanyu->pindian(target, "yijue", NULL);
     if (success) {
         target->addMark("yijue");
-        room->setPlayerCardLimitation(target, "use,response", ".|.|.|hand", true);
+        //room->setPlayerCardLimitation(target, "use,response", ".|.|.|hand", true);
         room->addPlayerMark(target, "@skill_invalidity");
 
         foreach(ServerPlayer *p, room->getAllPlayers())
@@ -356,10 +358,18 @@ void FenweiCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &ta
     //room->doLightbox("$FenweiAnimate");
     room->doSuperLightbox("ganning", "fenwei");
 
+    int count = 0;
     CardUseStruct use = source->tag["fenwei"].value<CardUseStruct>();
     foreach(ServerPlayer *p, targets)
+    {
         use.nullified_list << p->objectName();
+        count++;
+    }
     source->tag["fenwei"] = QVariant::fromValue(use);
+    if (count > 0)
+    {
+        source->drawCards(count, "fenwei");
+    }
 }
 
 GuoseCard::GuoseCard()
@@ -546,7 +556,9 @@ void YijiCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targ
         if (source->getHandcardNum() == 2 && targets.length() == 2 && targets.last()->isAlive() && target == targets.first())
             max = 1;
         const Card *dummy = room->askForExchange(source, "yiji", max, 1, false, "YijiGive::" + target->objectName());
-        target->addToPile("yiji", dummy, false);
+        //target->addToPile("yiji", dummy, false);
+        CardMoveReason reason(CardMoveReason::S_REASON_PREVIEWGIVE, "yiji");
+        room->obtainCard(target, dummy, reason, false);
         delete dummy;
     }
 }
@@ -610,3 +622,84 @@ void JianyanCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &)
         delete dummy;
     }
 }
+
+ZhishiCard::ZhishiCard()
+{
+    mute = true; will_throw = true; target_fixed = false;
+}
+
+bool ZhishiCard::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const
+{
+    if (!targets.isEmpty())
+        return false;
+
+    return to_select != Self && to_select->getMark("ZhiShiOnEffect") < 2;
+}
+
+void ZhishiCard::onEffect(const CardEffectStruct &effect) const
+{
+    Room *room = effect.to->getRoom();
+
+    room->broadcastSkillInvoke("zhishi", (qrand() % 2) + 1);
+    //room->setPlayerFlag(effect.to, "ZhiShiOnEffect");
+    room->addPlayerMark(effect.to, "ZhiShiOnEffect");
+    room->damage(DamageStruct("zhishi", effect.from, effect.to));
+    room->recover(effect.to, RecoverStruct(effect.from, 0, 1));
+}
+
+
+GeneralBasicViewAsCard::GeneralBasicViewAsCard(QString skillname)
+{
+    object_name = skillname;
+}
+
+bool GeneralBasicViewAsCard::targetFixed() const
+{
+    const Card *card = Self->tag.value(object_name).value<const Card *>();
+    Card *mutable_card = Sanguosha->cloneCard(card);
+    if (mutable_card) {
+        mutable_card->setCanRecast(false);
+        mutable_card->deleteLater();
+    }
+    return mutable_card && mutable_card->targetFixed();
+}
+
+bool GeneralBasicViewAsCard::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const
+{
+    const Card *card = Self->tag.value(object_name).value<const Card *>();
+    Card *mutable_card = Sanguosha->cloneCard(card);
+    if (mutable_card) {
+        mutable_card->setCanRecast(false);
+        mutable_card->deleteLater();
+    }
+    return mutable_card && mutable_card->targetFilter(targets, to_select, Self) && !Self->isProhibited(to_select, mutable_card, targets);
+}
+
+bool GeneralBasicViewAsCard::targetsFeasible(const QList<const Player *> &targets, const Player *Self) const
+{
+    const Card *card = Self->tag.value(object_name).value<const Card *>();
+    Card *mutable_card = Sanguosha->cloneCard(card);
+    if (mutable_card) {
+        mutable_card->setCanRecast(false);
+        mutable_card->deleteLater();
+    }
+    return mutable_card && mutable_card->targetsFeasible(targets, Self);
+}
+
+const Card *GeneralBasicViewAsCard::validate(CardUseStruct &card_use) const
+{
+    Card *use_card = Sanguosha->cloneCard(user_string);
+    use_card->setSkillName(object_name);
+    bool available = true;
+
+    foreach(ServerPlayer *to, card_use.to)
+        if (card_use.from->isProhibited(to, use_card)) {
+            available = false;
+            break;
+        }
+    available = available && use_card->isAvailable(card_use.from);
+    use_card->deleteLater();
+    if (!available) return NULL;
+    return use_card;
+}
+

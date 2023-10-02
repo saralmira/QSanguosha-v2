@@ -10,6 +10,7 @@ void CardItem::_initialize()
     setFlag(QGraphicsItem::ItemIsMovable);
     m_opacityAtHome = 1.0;
     m_currentAnimation = NULL;
+    m_setDisabled = false;
     _m_width = G_COMMON_LAYOUT.m_cardNormalWidth;
     _m_height = G_COMMON_LAYOUT.m_cardNormalHeight;
     _m_showFootnote = true;

@@ -7,6 +7,7 @@
 #include "audio.h"
 #include "serverplayer.h"
 #include "engine.h"
+#include "startupdialog.h"
 
 #if defined(WIN32) && defined(VS2010)
 #include "breakpad/client/windows/handler/exception_handler.h"
@@ -68,6 +69,10 @@ int main(int argc, char *argv[])
     qApp->installTranslator(&qt_translator);
     qApp->installTranslator(&translator);
 
+    // startup page
+    //StartUpDialog* startupdialog = new StartUpDialog();
+    //startupdialog->show();
+
     Sanguosha = new Engine;
     Config.init();
     qApp->setFont(Config.AppFont);
@@ -84,6 +89,7 @@ int main(int argc, char *argv[])
             printf("Starting failed!\n");
         }
 
+        //startupdialog->close();
         return qApp->exec();
     }
 
@@ -100,6 +106,8 @@ int main(int argc, char *argv[])
     MainWindow *main_window = new MainWindow;
 
     Sanguosha->setParent(main_window);
+
+    //startupdialog->close();
     main_window->show();
 
     foreach (QString arg, qApp->arguments()) {

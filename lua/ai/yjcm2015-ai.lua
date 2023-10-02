@@ -495,8 +495,10 @@ sgs.ai_skill_invoke.jigong = function(self)
         local x = nil
         if isCard("ArcheryAttack", c, self.player) then
             x = sgs.Sanguosha:cloneCard("ArcheryAttack")
+			x:deleteLater()
         elseif isCard("SavageAssault", c, self.player) then
             x = sgs.Sanguosha:cloneCard("SavageAssault")
+			x:deleteLater()
         else continue end
 
         local du = { isDummy = true }

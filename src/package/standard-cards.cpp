@@ -938,7 +938,7 @@ bool Collateral::targetFilter(const QList<const Player *> &targets,
     if (!targets.isEmpty()) {
         // @todo: fix this. We should probably keep the codes here, but change the code in
         // roomscene such that if it is collateral, then targetFilter's result is overrode
-        Q_ASSERT(targets.length() <= 2);
+        //Q_ASSERT(targets.length() <= 2);
         if (targets.length() == 2) return false;
         const Player *slashFrom = targets[0];
         /* @todo: develop a new mechanism of filtering targets
@@ -960,11 +960,28 @@ bool Collateral::targetFilter(const QList<const Player *> &targets,
 
 void Collateral::onUse(Room *room, const CardUseStruct &card_use) const
 {
-    Q_ASSERT(card_use.to.length() == 2);
-    ServerPlayer *killer = card_use.to.at(0);
-    ServerPlayer *victim = card_use.to.at(1);
-
     CardUseStruct new_use = card_use;
+
+    if (new_use.to.length() == 1) {
+        QList<ServerPlayer *> targets;
+        const ServerPlayer *slashFrom = new_use.to.at(0);
+        foreach (auto p, room->getAlivePlayers()) {
+            if (slashFrom->canSlash(p) && slashFrom != p)
+                targets << p;
+        }
+        if (targets.isEmpty()) {
+            SingleTargetTrick::onUse(room, new_use);
+            return;
+        }
+        auto target_2 = room->askForPlayerChosen(new_use.from, targets, "collateral_target_2", QString("@collateral_target_2:%1").arg(slashFrom->objectName()), false);
+        new_use.to.append(target_2);
+    }
+
+    Q_ASSERT(new_use.to.length() == 2);
+
+    ServerPlayer *killer = new_use.to.at(0);
+    ServerPlayer *victim = new_use.to.at(1);
+
     new_use.to.removeAt(1);
     killer->tag["collateralVictim"] = QVariant::fromValue(victim);
 
@@ -1238,7 +1255,8 @@ Indulgence::Indulgence(Suit suit, int number)
 
 bool Indulgence::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const
 {
-    return targets.isEmpty() && !to_select->containsTrick(objectName()) && to_select != Self;
+    return ((Self->getGameMode() == "05_wz" && targets.length() <= 1) || targets.isEmpty())
+            && !to_select->containsTrick(objectName()) && to_select != Self;
 }
 
 void Indulgence::takeEffect(ServerPlayer *target) const

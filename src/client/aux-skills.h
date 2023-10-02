@@ -84,6 +84,7 @@ private:
 };
 
 class ChoosePlayerCard;
+class ChoosePlayersCard;
 
 class ChoosePlayerSkill : public ZeroCardViewAsSkill
 {
@@ -97,6 +98,20 @@ public:
 
 private:
     ChoosePlayerCard *card;
+};
+
+class ChoosePlayersSkill : public ZeroCardViewAsSkill
+{
+    Q_OBJECT
+
+public:
+    explicit ChoosePlayersSkill();
+    void setPlayerNames(const QStringList &names);
+
+    const Card *viewAs() const;
+
+private:
+    ChoosePlayersCard *card;
 };
 
 #endif

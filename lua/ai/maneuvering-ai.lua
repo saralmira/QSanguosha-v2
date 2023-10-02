@@ -18,7 +18,7 @@ sgs.ai_use_value.FireSlash = 4.6
 sgs.ai_keep_value.FireSlash = 3.63
 sgs.ai_use_priority.FireSlash = 2.5
 
-sgs.weapon_range.fan = 4
+sgs.weapon_range.Fan = 4
 sgs.ai_use_priority.fan = 2.655
 sgs.ai_use_priority.Vine = 0.95
 
@@ -31,14 +31,15 @@ sgs.ai_skill_invoke.fan = function(self, data)
 			if not self:damageIsEffective(target, sgs.DamageStruct_Fire) then return true end
 			if target:isChained() and self:isGoodChainTarget(target, nil, nil, nil, use.card) then return true end
 		else
-			if not self:damageIsEffective(target, sgs.DamageStruct_Fire) then return false end
+			--if not self:damageIsEffective(target, sgs.DamageStruct_Fire) then return false end
+			if not self:damageIsEffective(target, sgs.DamageStruct_Normal) then return true end
 			if target:isChained() and not self:isGoodChainTarget(target, nil, nil, nil, use.card) then return false end
 			if target:hasArmorEffect("vine") or target:getMark("@gale") > 0 or (jinxuandi and jinxuandi:getMark("@wind") > 0) then
 				return true
 			end
 		end
 	end
-	return false
+	return true
 end
 sgs.ai_view_as.fan = function(card, player, card_place)
 	local suit = card:getSuitString()
@@ -93,6 +94,8 @@ function sgs.ai_armor_value.vine(player, self)
 
 	local fslash = sgs.Sanguosha:cloneCard("fire_slash")
 	local tslash = sgs.Sanguosha:cloneCard("thunder_slash")
+	fslash:deleteLater()
+	tslash:deleteLater()
 	if player:isChained() and (not self:isGoodChainTarget(player, self.player, nil, nil, fslash) or not self:isGoodChainTarget(player, self.player, nil, nil, tslash)) then return -2 end
 
 	for _, enemy in ipairs(self:getEnemies(player)) do

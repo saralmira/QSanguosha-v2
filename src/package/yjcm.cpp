@@ -323,6 +323,9 @@ public:
                             player->objectName(), objectName(), QString());
                         reason.m_playerId = player->objectName();
                         room->moveCardTo(card, source, player, Player::PlaceHand, reason);
+                        if (card->getSuit() != Card::Heart) {
+                            room->drawCards(player, 1, objectName());
+                        }
                         delete card;
                     } else {
                         room->loseHp(source);
@@ -335,6 +338,38 @@ public:
         return false;
     }
 };
+
+//class Xuanhuo : public TriggerSkill
+//{
+//public:
+//    Xuanhuo() : TriggerSkill("xuanhuo")
+//    {
+//        events << EventPhaseEnd;
+//        frequency = Skill::NotFrequent;
+//    }
+//
+//    bool trigger(TriggerEvent , Room *room, ServerPlayer *player, QVariant &data) const
+//    {
+//        if (player->getPhase() == Player::Draw && room->askForSkillInvoke(player, objectName())) {
+//            const Card *cards = room->askForExchange(player, objectName(), 2, 2, false, "", true);
+//            if (cards) {
+//                QList<int> cardids = cards->getSubcards();
+//
+//            }
+//            if (move.to == player && move.from && move.from->isAlive() && move.from != move.to && move.card_ids.size() >= 2 && move.reason.m_reason != CardMoveReason::S_REASON_PREVIEWGIVE
+//                    && (move.to_place == Player::PlaceHand || move.to_place == Player::PlaceEquip)) {
+//                move.from->setFlags("EnyuanDrawTarget");
+//                bool invoke = room->askForSkillInvoke(player, objectName(), data);
+//                move.from->setFlags("-EnyuanDrawTarget");
+//                if (invoke) {
+//                    room->drawCards((ServerPlayer *)move.from, 1, objectName());
+//                    room->broadcastSkillInvoke(objectName(), 1);
+//                }
+//            }
+//        }
+//        return false;
+//    }
+//};
 
 class Xuanhuo : public PhaseChangeSkill
 {
@@ -515,6 +550,7 @@ public:
     }
 };
 
+/*
 class Pojun : public TriggerSkill
 {
 public:
@@ -534,6 +570,47 @@ public:
             damage.to->drawCards(x, objectName());
             damage.to->turnOver();
         }
+        return false;
+    }
+};
+*/
+
+class Pojun : public TriggerSkill
+{
+public:
+    Pojun() : TriggerSkill("pojun")
+    {
+        events << TargetSpecified;
+    }
+
+    bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
+    {
+        if (triggerEvent == TargetSpecified) {
+            CardUseStruct use = data.value<CardUseStruct>();
+            if (!use.card->isKindOf("Slash"))
+                return false;
+            foreach (ServerPlayer *p, use.to) {
+                if (player->askForSkillInvoke(this, QVariant::fromValue(p))) {
+                    room->broadcastSkillInvoke(objectName());
+                    room->showAllCards(p);
+                    auto target_cards = p->getCards("he");
+                    if (target_cards.isEmpty())
+                        return false;
+                    QString choice = room->askForChoice(player, objectName(), "red+black", QVariant::fromValue(p));
+                    Card::Color color = choice == "red" ? Card::Red : Card::Black;
+                    QList<const Card *> cards;
+                    foreach (auto c, target_cards) {
+                        if (c->getColor() == color) cards << c;
+                    }
+                    room->clearAG();
+                    if (cards.isEmpty())
+                        continue;
+                    room->throwCards(cards, CardMoveReason(CardMoveReason::S_REASON_DISCARD, player->objectName(), p->objectName(), objectName(), QString()), p);
+                    p->drawCards(qMin(2, cards.size()), objectName());
+                }
+            }
+        }
+
         return false;
     }
 };
@@ -560,7 +637,7 @@ void XianzhenCard::onEffect(const CardEffectStruct &effect) const
         room->setPlayerProperty(effect.from, "extra_slash_specific_assignee", assignee_list.join("+"));
 
         room->setFixedDistance(effect.from, effect.to, 1);
-        room->addPlayerMark(effect.to, "Armor_Nullified");
+        room->setArmorNullified(effect.to, true);
     } else {
         room->setPlayerCardLimitation(effect.from, "use", "Slash", true);
     }
@@ -624,7 +701,7 @@ public:
 
             room->removeFixedDistance(gaoshun, target, 1);
             gaoshun->tag.remove("XianzhenTarget");
-            room->removePlayerMark(target, "Armor_Nullified");
+            room->setArmorNullified(target, false);
         }
         return false;
     }
@@ -948,74 +1025,106 @@ XinzhanCard::XinzhanCard()
     target_fixed = true;
 }
 
-void XinzhanCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &) const
+void XinzhanCard::use(Room *, ServerPlayer *source, QList<ServerPlayer *> &) const
 {
-    QList<int> cards = room->getNCards(3), left;
-
-    LogMessage log;
-    log.type = "$ViewDrawPile";
-    log.from = source;
-    log.card_str = IntList2StringList(cards).join("+");
-    room->sendLog(log, source);
-
-    left = cards;
-
-    QList<int> hearts, non_hearts;
-    foreach (int card_id, cards) {
-        const Card *card = Sanguosha->getCard(card_id);
-        if (card->getSuit() == Card::Heart)
-            hearts << card_id;
-        else
-            non_hearts << card_id;
-    }
-
-    if (!hearts.isEmpty()) {
-        DummyCard *dummy = new DummyCard;
-        do {
-            room->fillAG(left, source, non_hearts);
-            int card_id = room->askForAG(source, hearts, true, "xinzhan");
-            if (card_id == -1) {
-                room->clearAG(source);
-                break;
-            }
-
-            hearts.removeOne(card_id);
-            left.removeOne(card_id);
-
-            dummy->addSubcard(card_id);
-            room->clearAG(source);
-        } while (!hearts.isEmpty());
-
-        if (dummy->subcardsLength() > 0) {
-            room->doBroadcastNotify(QSanProtocol::S_COMMAND_UPDATE_PILE, QVariant(room->getDrawPile().length() + dummy->subcardsLength()));
-            source->obtainCard(dummy);
-            foreach(int id, dummy->getSubcards())
-                room->showCard(source, id);
-        }
-        delete dummy;
-    }
-
-    if (!left.isEmpty())
-        room->askForGuanxing(source, left, Room::GuanxingUpOnly);
+    source->drawCards(1 + qMax(1, source->getLostHp()), "xinzhan");
 }
 
-class Xinzhan : public ZeroCardViewAsSkill
+//void XinzhanCard::use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &) const
+//{
+//    QList<int> cards = room->getNCards(3), left;
+//
+//    LogMessage log;
+//    log.type = "$ViewDrawPile";
+//    log.from = source;
+//    log.card_str = IntList2StringList(cards).join("+");
+//    room->sendLog(log, source);
+//
+//    left = cards;
+//
+//    QList<int> hearts, non_hearts;
+//    foreach (int card_id, cards) {
+//        const Card *card = Sanguosha->getCard(card_id);
+//        if (card->getSuit() == Card::Heart)
+//            hearts << card_id;
+//        else
+//            non_hearts << card_id;
+//    }
+//
+//    if (!hearts.isEmpty()) {
+//        DummyCard *dummy = new DummyCard;
+//        do {
+//            room->fillAG(left, source, non_hearts);
+//            int card_id = room->askForAG(source, hearts, true, "xinzhan");
+//            if (card_id == -1) {
+//                room->clearAG(source);
+//                break;
+//            }
+//
+//            hearts.removeOne(card_id);
+//            left.removeOne(card_id);
+//
+//            dummy->addSubcard(card_id);
+//            room->clearAG(source);
+//        } while (!hearts.isEmpty());
+//
+//        if (dummy->subcardsLength() > 0) {
+//            room->doBroadcastNotify(QSanProtocol::S_COMMAND_UPDATE_PILE, QVariant(room->getDrawPile().length() + dummy->subcardsLength()));
+//            source->obtainCard(dummy);
+//            foreach(int id, dummy->getSubcards())
+//                room->showCard(source, id);
+//        }
+//        delete dummy;
+//    }
+//
+//    if (!left.isEmpty())
+//        room->askForGuanxing(source, left, Room::GuanxingUpOnly);
+//}
+
+class Xinzhan : public OneCardViewAsSkill
 {
 public:
-    Xinzhan() : ZeroCardViewAsSkill("xinzhan")
+    Xinzhan() : OneCardViewAsSkill("xinzhan")
     {
     }
 
-    bool isEnabledAtPlay(const Player *player) const
+    bool isEnabledAtPlay(const Player *) const
     {
-        return !player->hasUsed("XinzhanCard") && player->getHandcardNum() > player->getMaxHp();
+        //return player->usedTimes("XinzhanCard") < player->getHp();
+        return true;
     }
 
-    const Card *viewAs() const
+    bool viewFilter(const Card *to_select) const
     {
-        return new XinzhanCard;
+        return to_select->getSuit() == Card::Heart;
+    }
+
+    const Card *viewAs(const Card *originalCard) const
+    {
+        XinzhanCard *xz = new XinzhanCard;
+        xz->addSubcard(originalCard);
+        xz->setSkillName(objectName());
+        return xz;
     }
 };
+
+//class Xinzhan : public ZeroCardViewAsSkill
+//{
+//public:
+//    Xinzhan() : ZeroCardViewAsSkill("xinzhan")
+//    {
+//    }
+//
+//    bool isEnabledAtPlay(const Player *player) const
+//    {
+//        return !player->hasUsed("XinzhanCard") && player->getHandcardNum() > player->getMaxHp();
+//    }
+//
+//    const Card *viewAs() const
+//    {
+//        return new XinzhanCard;
+//    }
+//};
 
 class Quanji : public MasochismSkill
 {

@@ -20,7 +20,7 @@ class General : public QObject
 
 public:
     explicit General(Package *package, const QString &name, const QString &kingdom,
-        int max_hp = 4, bool male = true, bool hidden = false, bool never_shown = false);
+        int max_hp = 4, bool male = true, bool hidden = false, bool never_shown = false, int initial_hp = -1);
 
     // property getters/setters
     int getMaxHp() const;
@@ -31,6 +31,7 @@ public:
     bool isLord() const;
     bool isHidden() const;
     bool isTotallyHidden() const;
+    int getInitialHp() const;
 
     enum Gender
     {
@@ -72,6 +73,10 @@ private:
     QStringList related_skills;
     bool hidden;
     bool never_shown;
+    int initial_hp;
+
+public:
+    QList<int> mStageList;
 };
 
 #endif

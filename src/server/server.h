@@ -91,6 +91,8 @@ private:
     QCheckBox *free_assign_self_checkbox;
     QLabel *pile_swapping_label;
     QSpinBox *pile_swapping_spinbox;
+    QLabel *default_drawcards_label;
+    QSpinBox *default_drawcards_spinbox;
     QCheckBox *without_lordskill_checkbox;
     QCheckBox *sp_convert_checkbox;
     QSpinBox *maxchoice_spinbox;
@@ -103,6 +105,7 @@ private:
     QCheckBox *same_checkbox;
     QCheckBox *basara_checkbox;
     QCheckBox *hegemony_checkbox;
+    QCheckBox *transform_checkbox;
     QLabel *hegemony_maxchoice_label;
     QSpinBox *hegemony_maxchoice_spinbox;
     QLabel *hegemony_maxshown_label;
@@ -145,6 +148,7 @@ private:
     QPushButton *select_all_cards_button;
     QPushButton *deselect_all_cards_button;
     QPushButton *select_reverse_cards_button;
+    QCheckBox *enable_client_update_checkbox;
 
 
     QButtonGroup *extension_group;
@@ -165,6 +169,7 @@ private slots:
     void select3v3Generals();
     void edit1v1Banlist();
     void updateButtonEnablility(QAbstractButton *button);
+    void updateButtonEnablility2();
 
     void doCustomAssign();
     void doBossModeCustomAssign();
@@ -237,6 +242,9 @@ private:
     QNetworkReply *networkReply;
     bool serverListFirstReg;
     int tryTimes;
+    
+    bool enableUpdate;
+    ushort updatePort;
 
 private slots:
     void processNewConnection(ClientSocket *socket);
@@ -254,6 +262,8 @@ signals:
     void server_message(const QString &);
     void newPlayer(ServerPlayer *player);
 };
+
+extern QProcess *updaterProcess;
 
 #endif
 

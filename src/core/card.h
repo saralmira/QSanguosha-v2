@@ -66,6 +66,7 @@ public:
     int getId() const;
     virtual void setId(int id);
     int getEffectiveId() const;
+    QString getEffectiveStringOrName() const;
 
     int getNumber() const;
     virtual void setNumber(int number);
@@ -76,12 +77,14 @@ public:
 
     bool sameColorWith(const Card *other) const;
     Color getColor() const;
-    QString getFullName(bool include_suit = false) const;
+    QString getFullName(bool include_suit = false, bool include_number = true) const;
     QString getLogName() const;
     QString getName() const;
+    static QString getName(const QString &card_name);
     QString getSkillName(bool removePrefix = true) const;
     virtual void setSkillName(const QString &skill_name);
     QString getDescription() const;
+    static QString getDescription(const QString &card_name);
 
     virtual bool isMute() const;
     virtual bool willThrow() const;
@@ -119,6 +122,9 @@ public:
     virtual void addSubcards(const QList<const Card *> &cards);
     virtual void addSubcards(const QList<int> &subcards_list);
     virtual int subcardsLength() const;
+    virtual bool hasBasicSubcards() const;
+    virtual bool hasSubcard(const Card *card) const;
+    virtual bool hasSubcard(int subcard_id) const;
 
     virtual QString getType() const = 0;
     virtual QString getSubtype() const = 0;
@@ -162,6 +168,33 @@ public:
     inline virtual void onNullified(ServerPlayer *) const
     {
         return;
+    }
+    inline bool canCauseDamage(bool basic = true, bool trick = true, bool aoe = true) const
+    {
+        return (basic && isKindOf("Slash")) ||
+               (trick && ((aoe && (isKindOf("SavageAssault") || isKindOf("ArcheryAttack"))) || isKindOf("Duel") || isKindOf("FireAttack")));
+    }
+    inline bool isSkillOrDummy() const
+    {
+        return isKindOf("SkillCard") || isKindOf("DummyCard");
+    }
+    inline bool isBasicOrNonDelayedTrick() const
+    {
+        return isBasic() || isNDTrick();
+    }
+    inline bool isBasic() const
+    {
+        return isKindOf("BasicCard");
+    }
+    inline bool isSingleTargetTrick(bool delayed = true) const
+    {
+        return !isKindOf("Nullification") && (isKindOf("SingleTargetTrick") || (delayed && (isKindOf("Indulgence") || isKindOf("SupplyShortage"))));
+    }
+    inline bool canSpecifyTarget(const Player *target, bool basic = true, bool single_trick = true, bool multi_trick = true) const
+    {
+        return isAvailable(target) && (basic && (isKindOf("Slash") || isKindOf("Peach") || isKindOf("Analeptic"))) ||
+                (single_trick && ((isKindOf("SingleTargetTrick") && !isKindOf("Nullification")) || isKindOf("Indulgence") || isKindOf("SupplyShortage"))) ||
+                (multi_trick && (isKindOf("IronChain") || isKindOf("AOE") || isKindOf("GlobalEffect")));
     }
 
     // static functions
@@ -218,6 +251,7 @@ class DummyCard : public SkillCard
 public:
     DummyCard();
     DummyCard(const QList<int> &subcards);
+    DummyCard(const QList<const Card*> &subcards);
 
     QString getSubtype() const;
     QString getType() const;

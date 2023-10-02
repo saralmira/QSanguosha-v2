@@ -51,8 +51,11 @@ public:
     {
     }
 
-    void onDamaged(ServerPlayer *caopi, const DamageStruct &) const
+    void onDamaged(ServerPlayer *caopi, const DamageStruct &damage) const
     {
+        if (damage.damage <= 0)
+            return;
+
         Room *room = caopi->getRoom();
         ServerPlayer *to = room->askForPlayerChosen(caopi, room->getOtherPlayers(caopi), objectName(),
             "fangzhu-invoke", caopi->getMark("JilveEvent") != int(Damaged), true);
@@ -365,56 +368,167 @@ public:
     }
 };
 
-class Yinghun : public PhaseChangeSkill
+class Yinghun : public TriggerSkill
 {
 public:
-    Yinghun() : PhaseChangeSkill("yinghun")
+    Yinghun() : TriggerSkill("yinghun")
     {
+        events << EventPhaseProceeding << Damaged;
+        mustskillowner = false;
     }
 
-    bool triggerable(const ServerPlayer *target) const
+    bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
     {
-        return PhaseChangeSkill::triggerable(target)
-            && target->getPhase() == Player::Start
-            && target->isWounded();
-    }
+        auto players = room->findPlayersBySkillName(objectName());
+        auto targets = room->getOtherPlayers(room->getCurrent());
+        foreach (ServerPlayer *p, players) {
+            if (triggerEvent == EventPhaseProceeding) {
+                if (player->getPhase() != Player::RoundStart)
+                    continue;
+                if (p->getMark("yinghun_ex")) {
+                    if (player->getKingdom() != p->getKingdom())
+                        continue;
+                } else if (player != p)
+                    continue;
+            }
+            else if (triggerEvent == Damaged) {
+                DamageStruct damage_data = data.value<DamageStruct>();
+                if (damage_data.damage < 1 || damage_data.from != p || p->hasFlag("Yinghun_Damage"))
+                    continue;
+                room->setPlayerFlag(p, "Yinghun_Damage");
+            } else
+                continue;
 
-    bool onPhaseChange(ServerPlayer *sunjian) const
-    {
-        Room *room = sunjian->getRoom();
-        ServerPlayer *to = room->askForPlayerChosen(sunjian, room->getOtherPlayers(sunjian), objectName(), "yinghun-invoke", true, true);
-        if (to) {
-            int x = sunjian->getLostHp();
+            ServerPlayer *to = room->askForPlayerChosen(p, targets, objectName(), "yinghun-invoke", true, true);
+            if (to) {
+                int x = qMax(p->getLostHp(), 1);
 
-            int index = 1;
-            if (!sunjian->hasInnateSkill("yinghun") && sunjian->hasSkill("hunzi"))
-                index += 2;
+                int index = 1;
+                if (!p->hasInnateSkill("yinghun")) {
+                    if (p->hasSkill("olex_xiongyi"))
+                        index = 5;
+                    else if (p->hasSkill("hunzi"))
+                        index += 2;
+                }
 
-            if (x == 1) {
-                room->broadcastSkillInvoke(objectName(), index);
-
-                to->drawCards(1, objectName());
-                room->askForDiscard(to, objectName(), 1, 1, false, true);
-            } else {
-                to->setFlags("YinghunTarget");
-                QString choice = room->askForChoice(sunjian, objectName(), "d1tx+dxt1");
-                to->setFlags("-YinghunTarget");
-                if (choice == "d1tx") {
-                    room->broadcastSkillInvoke(objectName(), index + 1);
-
-                    to->drawCards(1, objectName());
-                    room->askForDiscard(to, objectName(), x, x, false, true);
-                } else {
+                if (x == 1) {
                     room->broadcastSkillInvoke(objectName(), index);
 
-                    to->drawCards(x, objectName());
+                    to->drawCards(1, objectName());
                     room->askForDiscard(to, objectName(), 1, 1, false, true);
+                } else {
+                    to->setFlags("YinghunTarget");
+                    QString choice = room->askForChoice(p, objectName(), "d1tx+dxt1");
+                    to->setFlags("-YinghunTarget");
+                    if (choice == "d1tx") {
+                        room->broadcastSkillInvoke(objectName(), index == 5 ? 5 : index + 1);
+
+                        to->drawCards(1, objectName());
+                        room->askForDiscard(to, objectName(), x, x, false, true);
+                    } else {
+                        room->broadcastSkillInvoke(objectName(), index);
+
+                        to->drawCards(x, objectName());
+                        room->askForDiscard(to, objectName(), 1, 1, false, true);
+                    }
                 }
             }
         }
         return false;
     }
 };
+
+class HunyouVS : public ZeroCardViewAsSkill
+{
+public:
+    HunyouVS() : ZeroCardViewAsSkill("hunyou")
+    {
+        response_pattern = "@@hunyou";
+    }
+
+    const Card *viewAs() const
+    {
+        return new HunyouCard;
+    }
+};
+
+HunyouCard::HunyouCard()
+{
+}
+
+bool HunyouCard::targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const
+{
+    return to_select != Self && targets.size() < Self->getHp() - 1;
+}
+
+bool HunyouCard::targetsFeasible(const QList<const Player *> &targets, const Player *Self) const
+{
+    return !targets.isEmpty() && targets.size() < Self->getHp() && !targets.contains(Self);
+}
+
+void HunyouCard::use(Room *room, ServerPlayer *player, QList<ServerPlayer *> &targets) const
+{
+    foreach (ServerPlayer *p, targets) {
+        //room->addPlayerMark(p, "@hyou");
+        p->gainMark("@hyou"); // so we have logs
+    }
+    room->removePlayerMark(player, "@hunyou");
+    room->setPlayerMark(player, "yinghun_ex", 1);
+    room->loseHp(player, targets.size());
+}
+
+class Hunyou : public TriggerSkill
+{
+public:
+    Hunyou() : TriggerSkill("hunyou")
+    {
+        events << EventPhaseStart;
+        frequency = Limited;
+        limit_mark = "@hunyou";
+        view_as_skill = new HunyouVS;
+    }
+
+    bool trigger(TriggerEvent , Room *room, ServerPlayer *player, QVariant &) const
+    {
+        if (player->getPhase() != Player::Finish || player->getMark("@hunyou") < 1)
+            return false;
+
+        room->askForUseCard(player, "@@hunyou", QString("hunyou-prompt:::%1").arg(player->getHp() - 1));
+        return false;
+    }
+};
+
+class HunyouProtect : public TriggerSkill
+{
+public:
+    HunyouProtect() : TriggerSkill("#hunyou_p")
+    {
+        events << DamageInflicted;
+        frequency = NotFrequent;
+        global = true;
+    }
+
+    bool trigger(TriggerEvent , Room *room, ServerPlayer *player, QVariant &data) const
+    {
+        if (player->getMark("@hyou")) {
+            DamageStruct damage = data.value<DamageStruct>();
+            if (damage.damage > 0 &&
+                room->askForSimpleChoice(player, "hunyoup", "ask", data)) {
+                room->removePlayerMark(player, "@hyou");
+
+                room->broadcastSkillInvoke("hunyou");
+                LogMessage log;
+                log.type = "#HunyouProtect";
+                log.from = player;
+                log.arg = QString::number(damage.damage);
+                room->sendLog(log);
+                return true;
+            }
+        }
+        return false;
+    }
+};
+
 
 HaoshiCard::HaoshiCard()
 {
@@ -748,6 +862,39 @@ void LuanwuCard::onEffect(const CardEffectStruct &effect) const
         room->loseHp(effect.to);
 }
 
+class WeimuPreventDamage : public TriggerSkill
+{
+public:
+    WeimuPreventDamage() :TriggerSkill("#weimu-pd")
+    {
+        events << DamageInflicted;
+        frequency = Compulsory;
+    }
+
+    bool trigger(TriggerEvent triggerEvent, Room* room, ServerPlayer *target, QVariant &data) const
+    {
+        if (triggerEvent == DamageInflicted && target->hasSkill("weimu") && target->getPhase() != Player::NotActive) {
+            DamageStruct damage = data.value<DamageStruct>();
+            if (damage.damage < 1)
+                return false;
+
+            LogMessage log;
+            log.type = "#WeimuPrevent";
+            log.from = target;
+            log.arg = QString::number(damage.damage);
+            log.arg2 = "weimu";
+            room->sendLog(log);
+
+            room->broadcastSkillInvoke("weimu");
+            target->drawCards(2, "weimu");
+
+            return true;
+        }
+
+        return false;
+    }
+};
+
 class Weimu : public ProhibitSkill
 {
 public:
@@ -976,6 +1123,7 @@ ThicketPackage::ThicketPackage()
 
     General *sunjian = new General(this, "sunjian", "wu"); // WU 009
     sunjian->addSkill(new Yinghun);
+    sunjian->addSkill(new Hunyou);
 
     General *lusu = new General(this, "lusu", "wu", 3); // WU 014
     lusu->addSkill(new Haoshi);
@@ -995,10 +1143,15 @@ ThicketPackage::ThicketPackage()
     jiaxu->addSkill(new Wansha);
     jiaxu->addSkill(new Luanwu);
     jiaxu->addSkill(new Weimu);
+    jiaxu->addSkill(new WeimuPreventDamage);
+    related_skills.insertMulti("weimu", "#weimu-pd");
 
     addMetaObject<DimengCard>();
     addMetaObject<LuanwuCard>();
     addMetaObject<HaoshiCard>();
+    addMetaObject<HunyouCard>();
+
+    skills << new HunyouProtect;
 }
 
 ADD_PACKAGE(Thicket)

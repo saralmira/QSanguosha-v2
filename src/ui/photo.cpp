@@ -179,7 +179,7 @@ void Photo::hideEmotion()
 void Photo::updateDuanchang()
 {
     if (!m_player) return;
-    _m_duanchangMask->setVisible(m_player->getMark("@duanchang") > 0);
+    _m_duanchangMask->setVisible(m_player->getMark("@duanchang") > 0 || m_player->getMark("@bloody") > 0);
 }
 
 const ClientPlayer *Photo::getPlayer() const

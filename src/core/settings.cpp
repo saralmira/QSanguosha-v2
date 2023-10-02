@@ -83,6 +83,7 @@ void Settings::init()
     EnableSame = value("EnableSame", false).toBool();
     EnableBasara = value("EnableBasara", false).toBool();
     EnableHegemony = value("EnableHegemony", false).toBool();
+    EnableTransform = value("EnableTransform", false).toBool();
     MaxHpScheme = value("MaxHpScheme", 0).toInt();
     Scheme0Subtraction = value("Scheme0Subtraction", 3).toInt();
     PreventAwakenBelow3 = value("PreventAwakenBelow3", false).toBool();
@@ -93,6 +94,7 @@ void Settings::init()
     AIDelayAD = value("AIDelayAD", 0).toInt();
     SurrenderAtDeath = value("SurrenderAtDeath", false).toBool();
     EnableLuckCard = value("EnableLuckCard", false).toBool();
+    EnableClientUpdate = value("EnableClientUpdate", true).toBool();
     ServerPort = value("ServerPort", 9527u).toUInt();
     DisableLua = value("DisableLua", false).toBool();
 
@@ -128,6 +130,7 @@ void Settings::init()
     EnableBgMusic = value("EnableBgMusic", true).toBool();
     BGMVolume = value("BGMVolume", 1.0f).toFloat();
     EffectVolume = value("EffectVolume", 1.0f).toFloat();
+    OneClickToChoose = value("OneClickToChoose", false).toBool();
 
     BackgroundImage = value("BackgroundImage", "image/system/backdrop/new-version.jpg").toString();
 

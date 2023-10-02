@@ -88,6 +88,7 @@ end
 
 sgs.ai_skill_invoke.bossqushou = function(self, data)
 	local sa = sgs.Sanguosha:cloneCard("savage_assault")
+	sa:deleteLater()
 	local dummy_use = { isDummy = true }
 	self:useTrickCard(sa, dummy_use)
 	return (dummy_use.card ~= nil)
@@ -95,6 +96,7 @@ end
 
 sgs.ai_skill_invoke.bossmojian = function(self, data)
 	local aa = sgs.Sanguosha:cloneCard("archery_attack")
+	aa:deleteLater()
 	local dummy_use = { isDummy = true }
 	self:useTrickCard(aa, dummy_use)
 	return (dummy_use.card ~= nil)

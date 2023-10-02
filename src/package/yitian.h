@@ -103,10 +103,29 @@ class YtYisheCard : public SkillCard
 
 public:
     Q_INVOKABLE YtYisheCard();
-
+    bool targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const;
     void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
 };
 
+class YtMidaoCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE YtMidaoCard();
+    void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
+};
+
+class YtPuduCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE YtPuduCard();
+    void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
+};
+
+/*
 class YtYisheAskCard : public SkillCard
 {
     Q_OBJECT
@@ -116,6 +135,7 @@ public:
 
     void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
 };
+*/
 
 class TaichenCard : public SkillCard
 {

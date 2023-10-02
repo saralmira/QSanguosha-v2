@@ -65,6 +65,12 @@ public:
     void loseMark(const QString &mark, int n = 1);
     void loseAllMarks(const QString &mark_name);
 
+    // if max_stage is reached, loop to initial stage, default 2: 1->2->1
+    void setMaxStage(const Skill *skill, int maxstage = 2);
+    void setMaxStage(const QString &skill_name, int maxstage = 2);
+    void switchStage(const Skill *skill, int specific_stage = -1);
+    void switchStage(const QString &skill_name, int specific_stage = -1);
+
     virtual void addSkill(const QString &skill_name);
     virtual void loseSkill(const QString &skill_name);
     virtual void setGender(General::Gender gender);
@@ -103,6 +109,7 @@ public:
 
     int getGeneralMaxHp() const;
     virtual QString getGameMode() const;
+    int getGeneralHp() const;
 
     QString getIp() const;
     void introduceTo(ServerPlayer *player);

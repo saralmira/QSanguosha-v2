@@ -168,10 +168,11 @@ void IQSanComponentSkin::QSanShadowTextFont::paintText(QPainter *painter, QRect 
         painter->drawImage(0, 0, image);
         return;
     }
-    QImage shadow = QSanUiUtils::produceShadow(image, m_shadowColor, m_shadowRadius, m_shadowDecadeFactor);
+    //QImage shadow = QSanUiUtils::produceShadow(painter, image, m_shadowColor, m_shadowRadius, m_shadowDecadeFactor);
+    QSanUiUtils::produceShadow(painter, image, m_shadowColor, m_shadowRadius, m_shadowDecadeFactor, pos);
     // now, overlay foreground on shadow
-    painter->drawImage(pos.topLeft(), shadow);
-    painter->drawImage(pos.topLeft(), image); //pos, image);
+    //painter->drawImage(pos.topLeft(), shadow);
+    //painter->drawImage(pos.topLeft(), image); //pos, image);
 }
 
 void IQSanComponentSkin::QSanShadowTextFont::paintText(QGraphicsPixmapItem *pixmapItem,
@@ -186,13 +187,14 @@ void IQSanComponentSkin::QSanShadowTextFont::paintText(QGraphicsPixmapItem *pixm
     QSanSimpleTextFont::paintText(&imagePainter, QRect(m_shadowRadius, m_shadowRadius,
         pos.width() - m_shadowRadius * 2, pos.height() - m_shadowRadius * 2),
         align, text);
-    QImage shadow = QSanUiUtils::produceShadow(image, m_shadowColor, m_shadowRadius, m_shadowDecadeFactor);
+    //QImage shadow = QSanUiUtils::produceShadow(painter, image, m_shadowColor, m_shadowRadius, m_shadowDecadeFactor);
+    QSanUiUtils::produceShadow(pixmapItem, image, m_shadowColor, m_shadowRadius, m_shadowDecadeFactor, pos);
     // now, overlay foreground on shadow
-    QPixmap pixmap = QPixmap::fromImage(shadow);
-    QPainter shadowPainter(&pixmap);
-    shadowPainter.drawImage(0, 0, image);
-    pixmapItem->setPixmap(pixmap);
-    pixmapItem->setPos(pos.x(), pos.y());
+    //QPixmap pixmap = QPixmap::fromImage(shadow);
+    //QPainter shadowPainter(&pixmap);
+    //shadowPainter.drawImage(0, 0, image);
+    //pixmapItem->setPixmap(pixmap);
+    //pixmapItem->setPos(pos.x(), pos.y());
 }
 
 QString QSanRoomSkin::getButtonPixmapPath(const QString &groupName,
@@ -772,6 +774,8 @@ bool QSanRoomSkin::_loadLayoutConfig(const QVariant &layout)
         _m_commonLayout.m_chooseGeneralBoxSwitchIconEachRowForTooManyGenerals);
     tryParse(config["chooseGeneralBoxNoIconThreshold"],
         _m_commonLayout.m_chooseGeneralBoxNoIconThreshold);
+    tryParse(config["chooseCardBoxSwitchIconEachRow"],
+        _m_commonLayout.m_chooseCardBoxSwitchIconEachRow);
     tryParse(config["chooseGeneralBoxDenseIconSize"],
         _m_commonLayout.m_chooseGeneralBoxDenseIconSize);
     tryParse(config["chooseGeneralBoxSparseIconSize"],
@@ -779,6 +783,8 @@ bool QSanRoomSkin::_loadLayoutConfig(const QVariant &layout)
     tryParse(config["tinyAvatarSize"], _m_commonLayout.m_tinyAvatarSize);
     tryParse(config["bubbleChatBoxShowAreaSize"],
         _m_commonLayout.m_bubbleChatBoxShowAreaSize);
+    tryParse(config["chooseCardBoxDenseIconSize"],
+        _m_commonLayout.m_chooseCardBoxDenseIconSize);
     _m_commonLayout.m_cardFootnoteFont.tryParse(config["cardFootnoteFont"]);
 
     JsonArray magatamaFont = config["magatamaFont"].value<JsonArray>();

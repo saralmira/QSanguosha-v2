@@ -6,6 +6,7 @@
 #include "banpair.h"
 #include "scenario.h"
 #include "choosegeneraldialog.h"
+#include "choosecarddialog.h"
 #include "customassigndialog.h"
 #include "miniscenarios.h"
 #include "skin-bank.h"
@@ -14,6 +15,7 @@
 #include "clientstruct.h"
 #include "qtupnpportmapping.h"
 #include "defines.h"
+#include "updateservice.h"
 
 using namespace QSanProtocol;
 
@@ -231,6 +233,12 @@ QWidget *ServerDialog::createAdvancedTab()
     pile_swapping_spinbox->setRange(-1, 15);
     pile_swapping_spinbox->setValue(Config.value("PileSwappingLimitation", 5).toInt());
 
+    default_drawcards_label = new QLabel(tr("Default num of draw cards"));
+    default_drawcards_label->setToolTip(tr("must between 1 - 5"));
+    default_drawcards_spinbox = new QSpinBox;
+    default_drawcards_spinbox->setRange(1, 5);
+    default_drawcards_spinbox->setValue(Config.value("DefaultDrawCards", 2).toInt());
+
     without_lordskill_checkbox = new QCheckBox(tr("Without Lordskill"));
     without_lordskill_checkbox->setChecked(Config.value("WithoutLordskill", false).toBool());
 
@@ -263,6 +271,9 @@ QWidget *ServerDialog::createAdvancedTab()
     same_checkbox = new QCheckBox(tr("Enable Same"));
     same_checkbox->setChecked(Config.EnableSame);
 
+    transform_checkbox = new QCheckBox(tr("Enable Transform"));
+    transform_checkbox->setChecked(Config.EnableTransform);
+
     max_hp_label = new QLabel(tr("Max HP scheme"));
     max_hp_scheme_ComboBox = new QComboBox;
     max_hp_scheme_ComboBox->addItem(tr("Sum - X"));
@@ -294,6 +305,10 @@ QWidget *ServerDialog::createAdvancedTab()
     hegemony_checkbox->setEnabled(basara_checkbox->isChecked());
     connect(basara_checkbox, SIGNAL(toggled(bool)), hegemony_checkbox, SLOT(setChecked(bool)));
     connect(basara_checkbox, SIGNAL(toggled(bool)), hegemony_checkbox, SLOT(setEnabled(bool)));
+
+    connect(same_checkbox, SIGNAL(toggled(bool)), this, SLOT(updateButtonEnablility2()));
+    connect(second_general_checkbox, SIGNAL(toggled(bool)), this, SLOT(updateButtonEnablility2()));
+    connect(basara_checkbox, SIGNAL(toggled(bool)), this, SLOT(updateButtonEnablility2()));
 
     hegemony_maxchoice_label = new QLabel(tr("Upperlimit for hegemony"));
     hegemony_maxchoice_spinbox = new QSpinBox;
@@ -332,6 +347,7 @@ QWidget *ServerDialog::createAdvancedTab()
     layout->addWidget(free_choose_checkbox);
     layout->addLayout(HLay(free_assign_checkbox, free_assign_self_checkbox));
     layout->addLayout(HLay(pile_swapping_label, pile_swapping_spinbox));
+    layout->addLayout(HLay(default_drawcards_label, default_drawcards_spinbox));
     layout->addLayout(HLay(without_lordskill_checkbox, sp_convert_checkbox));
     layout->addLayout(HLay(new QLabel(tr("Upperlimit for general")), maxchoice_spinbox));
     layout->addLayout(HLay(lord_maxchoice_label, lord_maxchoice_spinbox));
@@ -343,7 +359,7 @@ QWidget *ServerDialog::createAdvancedTab()
     layout->addLayout(HLay(basara_checkbox, hegemony_checkbox));
     layout->addLayout(HLay(hegemony_maxchoice_label, hegemony_maxchoice_spinbox));
     layout->addLayout(HLay(hegemony_maxshown_label, hegemony_maxshown_spinbox));
-    layout->addWidget(same_checkbox);
+    layout->addLayout(HLay(same_checkbox, transform_checkbox));
     layout->addLayout(HLay(new QLabel(tr("Address")), address_edit));
     layout->addWidget(detect_button);
     layout->addLayout(HLay(new QLabel(tr("Port")), port_edit));
@@ -404,6 +420,9 @@ QWidget *ServerDialog::createMiscTab()
     luck_card_checkbox = new QCheckBox(tr("Enable the luck card"));
     luck_card_checkbox->setChecked(Config.EnableLuckCard);
 
+    enable_client_update_checkbox = new QCheckBox(tr("Enable client update"));
+    enable_client_update_checkbox->setChecked(Config.EnableClientUpdate);
+
     QGroupBox *ai_groupbox = new QGroupBox(tr("Artificial intelligence"));
     ai_groupbox->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
 
@@ -446,6 +465,7 @@ QWidget *ServerDialog::createMiscTab()
     tablayout->addWidget(minimize_dialog_checkbox);
     tablayout->addWidget(surrender_at_death_checkbox);
     tablayout->addWidget(luck_card_checkbox);
+    tablayout->addWidget(enable_client_update_checkbox);
     tablayout->addWidget(ai_groupbox);
     tablayout->addStretch();
 
@@ -454,9 +474,16 @@ QWidget *ServerDialog::createMiscTab()
     return widget;
 }
 
+static QStringList transform_modes;
+
 void ServerDialog::updateButtonEnablility(QAbstractButton *button)
 {
     if (!button) return;
+
+    if (transform_modes.isEmpty()) {
+        transform_modes << "02p" << "03p" << "04p" << "05p" << "06p" << "07p" << "08p";
+    }
+
     if (button->objectName().contains("scenario")
         || button->objectName().contains("mini")
         || button->objectName().contains("1v1")
@@ -475,10 +502,39 @@ void ServerDialog::updateButtonEnablility(QAbstractButton *button)
         second_general_checkbox->setEnabled(true);
         mini_scene_button->setEnabled(false);
     }
+
     if (button->objectName() == "04_boss")
         boss_mode_button->setEnabled(true);
     else
         boss_mode_button->setEnabled(false);
+
+    if (transform_modes.contains(button->objectName()) &&
+        !basara_checkbox->isChecked() &&
+        !second_general_checkbox->isChecked() &&
+        !same_checkbox->isChecked()) {
+        transform_checkbox->setEnabled(true);
+    } else {
+        transform_checkbox->setChecked(false);
+        transform_checkbox->setEnabled(false);
+    }
+}
+
+void ServerDialog::updateButtonEnablility2()
+{
+    if (transform_modes.isEmpty()) {
+        transform_modes << "02p" << "03p" << "04p" << "05p" << "06p" << "07p" << "08p";
+    }
+
+    auto checked_mode = mode_group->checkedButton()->objectName();
+    if (transform_modes.contains(checked_mode) &&
+        !basara_checkbox->isChecked() &&
+        !second_general_checkbox->isChecked() &&
+        !same_checkbox->isChecked()) {
+        transform_checkbox->setEnabled(true);
+    } else {
+        transform_checkbox->setChecked(false);
+        transform_checkbox->setEnabled(false);
+    }
 }
 
 void BanlistDialog::switchTo(int item)
@@ -1249,6 +1305,7 @@ int ServerDialog::config()
     Config.EnableSame = same_checkbox->isChecked();
     Config.EnableBasara = basara_checkbox->isChecked() && basara_checkbox->isEnabled();
     Config.EnableHegemony = hegemony_checkbox->isChecked() && hegemony_checkbox->isEnabled();
+    Config.EnableTransform = transform_checkbox->isChecked() && transform_checkbox->isEnabled();
     Config.MaxHpScheme = max_hp_scheme_ComboBox->currentIndex();
     if (Config.MaxHpScheme == 0) {
         Config.Scheme0Subtraction = scheme0_subtraction_spinbox->value();
@@ -1270,6 +1327,7 @@ int ServerDialog::config()
     Config.DisableLua = disable_lua_checkbox->isChecked();
     Config.SurrenderAtDeath = surrender_at_death_checkbox->isChecked();
     Config.EnableLuckCard = luck_card_checkbox->isChecked();
+    Config.EnableClientUpdate = enable_client_update_checkbox->isChecked();
 
     // game mode
     if (mode_group->checkedButton()) {
@@ -1295,6 +1353,7 @@ int ServerDialog::config()
     Config.setValue("FreeAssign", Config.EnableCheat && free_assign_checkbox->isChecked());
     Config.setValue("FreeAssignSelf", Config.FreeAssignSelf);
     Config.setValue("PileSwappingLimitation", pile_swapping_spinbox->value());
+    Config.setValue("DefaultDrawCards", default_drawcards_spinbox->value());
     Config.setValue("WithoutLordskill", without_lordskill_checkbox->isChecked());
     Config.setValue("EnableSPConvert", sp_convert_checkbox->isChecked());
     Config.setValue("MaxChoice", maxchoice_spinbox->value());
@@ -1306,6 +1365,7 @@ int ServerDialog::config()
     Config.setValue("EnableSame", Config.EnableSame);
     Config.setValue("EnableBasara", Config.EnableBasara);
     Config.setValue("EnableHegemony", Config.EnableHegemony);
+    Config.setValue("EnableTransform", Config.EnableTransform);
     Config.setValue("HegemonyMaxChoice", hegemony_maxchoice_spinbox->value());
     Config.setValue("HegemonyMaxShown", hegemony_maxshown_spinbox->value());
     Config.setValue("MaxHpScheme", Config.MaxHpScheme);
@@ -1321,6 +1381,7 @@ int ServerDialog::config()
     Config.setValue("AIDelayAD", Config.AIDelayAD);
     Config.setValue("SurrenderAtDeath", Config.SurrenderAtDeath);
     Config.setValue("EnableLuckCard", Config.EnableLuckCard);
+    Config.setValue("EnableClientUpdate", Config.EnableClientUpdate);
     Config.setValue("ServerPort", Config.ServerPort);
     Config.setValue("Address", Config.Address);
     Config.setValue("DisableLua", disable_lua_checkbox->isChecked());
@@ -1361,7 +1422,7 @@ int ServerDialog::config()
 }
 
 Server::Server(QObject *parent)
-    : QObject(parent), created_successfully(true)
+    : QObject(parent), created_successfully(true), updatePort(0)
 {
     server = new NativeServerSocket;
     server->setParent(this);
@@ -1376,6 +1437,8 @@ Server::Server(QObject *parent)
 
     current = NULL;
     if (!createNewRoom()) created_successfully = false;
+
+    enableUpdate = Config.EnableClientUpdate;
 
     connect(server, SIGNAL(new_connection(ClientSocket *)), this, SLOT(processNewConnection(ClientSocket *)));
 }
@@ -1439,11 +1502,12 @@ void Server::processNewConnection(ClientSocket *socket)
 	}
 
 	connect(socket, SIGNAL(disconnected()), this, SLOT(cleanup()));
-    
-    Packet packet(S_SRC_ROOM | S_TYPE_NOTIFICATION | S_DEST_CLIENT, S_COMMAND_CHECK_VERSION);
-    packet.setMessageBody((Sanguosha->getVersion()));
-    socket->send((packet.toString()));
 
+    Packet packet(S_SRC_ROOM | S_TYPE_NOTIFICATION | S_DEST_CLIENT, S_COMMAND_CHECK_VERSION);
+    packet.setMessageBody((Sanguosha->getVersion() + (Config.EnableClientUpdate ? "$1" : "$0")));
+    socket->send(packet.toString());
+
+    // if setup succeed, it will enter the room.
     Packet packet2(S_SRC_ROOM | S_TYPE_NOTIFICATION | S_DEST_CLIENT, S_COMMAND_SETUP);
 	QString s = Sanguosha->getSetupString();
 	s.append(":"+QString::number(playerCount));
@@ -1464,12 +1528,40 @@ void Server::processRequest(const char *request)
     socket->timerSignup.stop();
 
     Packet signup;
-    if (!signup.parse(request) || signup.getCommandType() != S_COMMAND_SIGNUP) {
+    if (!signup.parse(request) || (signup.getCommandType() != S_COMMAND_SIGNUP &&
+                                  (signup.getCommandType() != S_COMMAND_UPDATE_GAME || !enableUpdate))) {
         emit server_message(tr("Invalid signup string: %1").arg(request));
         QSanProtocol::Packet packet(S_SRC_ROOM | S_TYPE_NOTIFICATION | S_DEST_CLIENT, S_COMMAND_WARN);
         packet.setMessageBody("INVALID_FORMAT");
         socket->send(packet.toString());
         socket->disconnectFromHost();
+        return;
+    }
+
+    if (signup.getCommandType() == S_COMMAND_UPDATE_GAME) {
+        emit server_message(tr("%1 request update").arg(socket->peerAddress()));
+
+        if (updatePort < 9536)
+        {
+            updatePort = 9536;
+            for (; updatePort < 15535; updatePort++) {
+                if (!NativeServerSocket::isPortOccupied(updatePort))
+                    break;
+            }
+            QStringList args;
+            args << "-s" << QString::number(updatePort);
+
+            if (!updaterProcess) {
+                updaterProcess = new QProcess(this);
+                updaterProcess->start("Updater.exe", args);
+                emit server_message(tr("Update service launched, port: %1").arg(updatePort));
+            }
+        }
+
+        QSanProtocol::Packet packet(S_SRC_ROOM | S_TYPE_NOTIFICATION | S_DEST_CLIENT, S_COMMAND_UPDATE_GAME);
+        packet.setMessageBody(updatePort);
+        socket->send(packet.toString());
+        // socket->disconnectFromHost();
         return;
     }
 
@@ -1674,3 +1766,5 @@ void Server::listServerReply()
     networkReply->deleteLater();
     networkReply=NULL;
 }
+
+QProcess *updaterProcess = NULL;

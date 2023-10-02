@@ -3,10 +3,10 @@
 
 class CardItem;
 class ClientPlayer;
+class EffectAnimation;
 
 #include "qsan-selectable-item.h"
 #include "generic-cardcontainer-ui.h"
-
 
 class CloseButton : public QSanSelectableItem
 {
@@ -31,7 +31,8 @@ public:
     explicit CardContainer();
     virtual QList<CardItem *> removeCardItems(const QList<int> &card_ids, Player::Place place);
     int getFirstEnabled() const;
-    void startChoose();
+    void startChoose(const QList<int> &enabled_ids);
+    void endChoose();
     void startGongxin(const QList<int> &enabled_ids);
     void addCloseButton();
     void view(const ClientPlayer *player);
@@ -47,6 +48,10 @@ public slots:
 
 protected:
     QRectF _m_boundingRect;
+
+    //for animated effects
+    //EffectAnimation *animations;
+
     virtual bool _addCardItems(QList<CardItem *> &card_items, const CardsMoveStruct &moveInfo);
 
 private:

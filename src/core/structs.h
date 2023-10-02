@@ -181,6 +181,7 @@ public:
     static const int S_REASON_JUDGE = 0x28;             // show a card from drawpile for judge
     static const int S_REASON_PREVIEW = 0x38;           // Not done yet, plan for view some cards for self only(guanxing yiji miji)
     static const int S_REASON_DEMONSTRATE = 0x48;       // show a card which copy one to move to table
+    static const int S_REASON_TURNOVERBOTTOM = 0x58;    // show n cards from bottom of drawpile
 
     //subcategory of transfer
     static const int S_REASON_SWAP = 0x19;              // exchange card for two players
@@ -452,6 +453,37 @@ struct CardResponseStruct
     bool m_isRetrial;
 };
 
+// for tag/property recording card information
+struct CardInfoStruct
+{
+    inline CardInfoStruct()
+    {
+        suit = Card::NoSuit;
+        color = Card::Colorless;
+        number = 0;
+    }
+
+    inline CardInfoStruct(const Card *card)
+    {
+        pattern = card->objectName();
+        classname = card->getClassName();
+        suit = card->getSuit();
+        color = card->getColor();
+        number = card->getNumber();
+    }
+
+    QString pattern;
+    QString classname;
+    Card::Suit suit;
+    Card::Color color;
+    int number;
+
+    operator QVariant() const
+    {
+        return QVariant::fromValue(*this);
+    }
+};
+
 enum TriggerEvent
 {
     NonTrigger,
@@ -487,6 +519,7 @@ enum TriggerEvent
     PindianVerifying,
     Pindian,
 
+    PreTurnedOver,
     TurnedOver,
     ChainStateChanged,
 
@@ -518,6 +551,7 @@ enum TriggerEvent
     SlashMissed,
 
     JinkEffect,
+    NullificationUsed,
     NullificationEffect,
 
     CardAsked,
@@ -566,5 +600,6 @@ Q_DECLARE_METATYPE(const Card *)
 Q_DECLARE_METATYPE(ServerPlayer *)
 Q_DECLARE_METATYPE(JudgeStruct *)
 Q_DECLARE_METATYPE(PindianStruct *)
+Q_DECLARE_METATYPE(CardInfoStruct)
 #endif
 

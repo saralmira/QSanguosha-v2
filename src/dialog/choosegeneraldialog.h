@@ -5,6 +5,7 @@ class General;
 class QSanCommandProgressBar;
 
 //#include "timed-progressbar.h"
+#include <QToolButton>
 
 class OptionButton : public QToolButton
 {
@@ -18,9 +19,11 @@ public:
 
 protected:
     virtual void mouseDoubleClickEvent(QMouseEvent *);
+    virtual void mouseReleaseEvent(QMouseEvent *);
 
 signals:
     void double_clicked();
+    void clicked();
 };
 
 class ChooseGeneralDialog : public QDialog

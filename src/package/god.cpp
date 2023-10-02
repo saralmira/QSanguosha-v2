@@ -715,7 +715,7 @@ void WuqianCard::onEffect(const CardEffectStruct &effect) const
     room->acquireSkill(effect.from, "wushuang");
     effect.from->setFlags("WuqianSource");
     effect.to->setFlags("WuqianTarget");
-    room->addPlayerMark(effect.to, "Armor_Nullified");
+    room->setArmorNullified(effect.to, true);
 }
 
 class WuqianViewAsSkill : public ZeroCardViewAsSkill
@@ -766,8 +766,8 @@ public:
         foreach (ServerPlayer *p, room->getAllPlayers()) {
             if (p->hasFlag("WuqianTarget")) {
                 p->setFlags("-WuqianTarget");
-                if (p->getMark("Armor_Nullified") > 0)
-                    room->removePlayerMark(p, "Armor_Nullified");
+                if (room->isArmorNullified(p))
+                    room->setArmorNullified(p, false);
             }
         }
         room->detachSkillFromPlayer(player, "wushuang", false, true);
@@ -1264,7 +1264,7 @@ public:
             if (triggerEvent == CardUsed) {
                 const TriggerSkill *jizhi = Sanguosha->getTriggerSkill("jizhi");
                 CardUseStruct use = data.value<CardUseStruct>();
-                if (jizhi && use.card && use.card->getTypeId() == Card::TypeTrick && player->askForSkillInvoke("jilve_jizhi", data)) {
+                if (jizhi && use.card && use.card->getTypeId() == Card::TypeTrick && !use.card->isVirtualCard() && player->askForSkillInvoke("jilve_jizhi", data)) {
                     room->notifySkillInvoked(player, objectName());
                     player->loseMark("@bear");
                     jizhi->trigger(triggerEvent, room, player, data);
@@ -1439,6 +1439,37 @@ public:
             return 2;
         else
             return 0;
+    }
+};
+
+class JuejingLoseHp : public TriggerSkill
+{
+public:
+    JuejingLoseHp() : TriggerSkill("#juejing-losehp")
+    {
+        events << EventPhaseEnd;
+        frequency = Skill::Compulsory;
+        mustskillowner = false;
+    }
+
+    bool trigger(TriggerEvent , Room *room, ServerPlayer *player, QVariant &) const
+    {
+        if (player->getPhase() == Player::Finish) {
+            QList<ServerPlayer *> shenzhaoyun = room->findPlayersBySkillName("juejing");
+            if (shenzhaoyun.size() == 0)
+                return false;
+
+            foreach (ServerPlayer *szy, shenzhaoyun) {
+                if (szy->getHp() > 1) {
+                    room->notifySkillInvoked(szy, "juejing");
+                    room->broadcastSkillInvoke("juejing");
+                    room->loseHp(szy, 1);
+                    room->drawCards(szy, 2, "juejing");
+                }
+            }
+        }
+
+        return false;
     }
 };
 
@@ -1618,8 +1649,10 @@ GodPackage::GodPackage()
     General *shenzhaoyun = new General(this, "shenzhaoyun", "god", 2); // LE 007
     shenzhaoyun->addSkill(new JuejingKeep);
     shenzhaoyun->addSkill(new Juejing);
+    shenzhaoyun->addSkill(new JuejingLoseHp);
     shenzhaoyun->addSkill(new Longhun);
     related_skills.insertMulti("juejing", "#juejing-draw");
+    related_skills.insertMulti("juejing", "#juejing-losehp");
 
     General *shensimayi = new General(this, "shensimayi", "god", 4); // LE 008
     shensimayi->addSkill(new Renjie);

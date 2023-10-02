@@ -352,6 +352,15 @@ ServerPlayer *TrustAI::askForPlayerChosen(const QList<ServerPlayer *> &targets, 
     return targets.at(r);
 }
 
+QList<ServerPlayer *> TrustAI::askForPlayersChosen(const QList<ServerPlayer *> &targets, const QString &reason)
+{
+    Q_UNUSED(reason);
+
+    QList<ServerPlayer *> ts;
+    ts.append(targets);
+    return ts;
+}
+
 const Card *TrustAI::askForSinglePeach(ServerPlayer *dying)
 {
     if (isFriend(dying)) {

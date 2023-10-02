@@ -59,5 +59,15 @@ public:
     static QString getMappedRole(const QString &role);
 };
 
+class TransformMode : public GameRule
+{
+    Q_OBJECT
+
+public:
+    TransformMode(QObject *parent);
+    // int getPriority(TriggerEvent) const;
+    virtual bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data = _dummy_variant) const;
+};
+
 #endif
 

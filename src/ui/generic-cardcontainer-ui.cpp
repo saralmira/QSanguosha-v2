@@ -467,7 +467,7 @@ void PlayerCardContainer::refresh(bool)
         if (_m_faceTurnedIcon) _m_faceTurnedIcon->setVisible(!m_player->faceUp());
         if (_m_chainIcon) _m_chainIcon->setVisible(m_player->isChained());
         if (_m_actionIcon) _m_actionIcon->setVisible(m_player->hasFlag("actioned"));
-        if (_m_deathIcon && !(ServerInfo.GameMode == "04_1v3" && m_player->getGeneralName() != "shenlvbu2"))
+        if (_m_deathIcon && !(ServerInfo.GameMode == "04_1v3" && m_player->getGeneralName() != m_player->property("hulao_newgeneral").toString()/*"shenlvbu2"*/))
             _m_deathIcon->setVisible(m_player->isDead());
     }
     updateHandcardNum();
@@ -724,7 +724,7 @@ void PlayerCardContainer::startHuaShen(QString generalName, QString skillName)
 
     _m_huashenGeneralName = generalName;
     _m_huashenSkillName = skillName;
-    Q_ASSERT(m_player->hasSkill("huashen"));
+    Q_ASSERT(m_player->hasSkill("huashen") || ServerInfo.EnableTransform);
 
     bool second_zuoci = m_player && m_player->getGeneralName() != "zuoci" && m_player->getGeneral2Name() == "zuoci";
     int avatarSize = second_zuoci ? _m_layout->m_smallAvatarSize :

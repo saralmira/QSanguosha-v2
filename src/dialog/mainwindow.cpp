@@ -21,6 +21,7 @@
 #include "clientstruct.h"
 #include "settings.h"
 #include "button.h"
+#include "nativesocket.h"
 
 class FitView : public QGraphicsView
 {
@@ -131,6 +132,14 @@ void MainWindow::restoreFromConfig()
 
 void MainWindow::closeEvent(QCloseEvent *)
 {
+    if (updaterProcess) {
+        updaterProcess->kill();
+        updaterProcess = NULL;
+    }
+    //QProcess p;
+    //p.execute("taskkill /im Updater.exe /f");
+    //p.close();
+
     Config.setValue("WindowSize", size());
     Config.setValue("WindowPosition", pos());
     Config.setValue("WindowState", (int)windowState());
@@ -177,6 +186,11 @@ void MainWindow::on_actionStart_Server_triggered()
     if (accept_type == 0)
         return;
 
+    if (NativeServerSocket::isPortOccupied(Config.ServerPort)) {
+        QMessageBox::warning(this, tr("Warning"), tr("Server port is occupied, please try another one!"));
+        return;
+    }
+
     server = new Server(this);
     if (!server->listen()) {
         QMessageBox::warning(this, tr("Warning"), tr("Can not start server!"));
@@ -203,7 +217,7 @@ void MainWindow::on_actionStart_Server_triggered()
     }
 }
 
-void MainWindow::checkVersion(const QString &server_version, const QString &server_mod)
+void MainWindow::checkVersion(const QString &server_version, const QString &server_mod, const bool enable_update)
 {
     QString client_mod = Sanguosha->getMODName();
     if (client_mod != server_mod) {
@@ -218,6 +232,16 @@ void MainWindow::checkVersion(const QString &server_version, const QString &serv
         client->signup();
         connect(client, SIGNAL(server_connected()), SLOT(enterRoom()));
         return;
+    }
+
+    if (enable_update) {
+        // update?
+        QMessageBox::StandardButton result = QMessageBox::question(this, tr("Update"), tr("Would you like to update your client from %1 to %2?").arg(client_version).arg(server_version), QMessageBox::Ok | QMessageBox::Cancel, QMessageBox::Cancel);
+        if (result == QMessageBox::Ok) {
+            // request update
+            client->requestUpdate();
+            return;
+        }
     }
 
     client->disconnectFromHost();
@@ -237,7 +261,7 @@ void MainWindow::startConnection()
 {
     Client *client = new Client(this);
 
-    connect(client, SIGNAL(version_checked(QString, QString)), SLOT(checkVersion(QString, QString)));
+    connect(client, SIGNAL(version_checked(QString, QString, bool)), SLOT(checkVersion(QString, QString, bool)));
     connect(client, SIGNAL(error_message(QString)), SLOT(networkError(QString)));
 }
 
@@ -300,6 +324,7 @@ void MainWindow::enterRoom()
     ui->actionReturn_to_Main_Menu->setEnabled(false);
 
     RoomScene *room_scene = new RoomScene(this);
+
     ui->actionView_Discarded->setEnabled(true);
     ui->actionView_distance->setEnabled(true);
     ui->actionServerInformation->setEnabled(true);

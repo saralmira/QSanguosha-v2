@@ -473,7 +473,6 @@ void RoomThread::actionHulaoPass(ServerPlayer *shenlvbu, QList<ServerPlayer *> l
                     }
                 }
             }
-
             room->setCurrent(shenlvbu);
             actionHulaoPass(shenlvbu, league, game_rule, 2);
         } else if (triggerEvent == TurnBroken) {
@@ -556,6 +555,8 @@ void RoomThread::run()
     GameRule *game_rule;
     if (room->getMode() == "04_1v3")
         game_rule = new HulaoPassMode(this);
+    else if (Config.EnableTransform)
+        game_rule = new TransformMode(this);
     else
         game_rule = new GameRule(this);
 
@@ -592,8 +593,10 @@ void RoomThread::run()
                 second = warm;
             }
         }
+
         constructTriggerTable();
         trigger(GameStart, (Room *)room, NULL);
+
         if (room->getMode() == "06_3v3") {
             run3v3(first, second, game_rule, first.first());
         } else if (room->getMode() == "04_1v3") {
@@ -664,7 +667,8 @@ bool RoomThread::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *ta
             TriggerSkill *mutable_skill = const_cast<TriggerSkill *>(skill);
             mutable_skill->setDynamicPriority(priority);
         }
-        qStableSort(skills.begin(), skills.end(), CompareByPriority);
+        if (!skills.isEmpty())
+            qStableSort(skills.begin(), skills.end(), CompareByPriority);
 
         int current_priority = 1000;
         for (int i = 0; i < skills.size(); i++) {
@@ -683,7 +687,9 @@ bool RoomThread::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *ta
 
         if (target) {
             foreach(AI *ai, room->ais)
-                ai->filterEvent(triggerEvent, target, data);
+                if (ai) {
+                    ai->filterEvent(triggerEvent, target, data);
+                }
         }
 
         // pop event stack
@@ -692,7 +698,9 @@ bool RoomThread::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *ta
     catch (TriggerEvent throwed_event) {
         if (target) {
             foreach(AI *ai, room->ais)
-                ai->filterEvent(triggerEvent, target, data);
+                if (ai) {
+                    ai->filterEvent(triggerEvent, target, data);
+                }
         }
 
         // pop event stack

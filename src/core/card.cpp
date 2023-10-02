@@ -76,6 +76,12 @@ int Card::getEffectiveId() const
         return m_id;
 }
 
+QString Card::getEffectiveStringOrName() const
+{
+    int id = getEffectiveId();
+    return id < 0 ? "@" + objectName() : QString::number(id);
+}
+
 int Card::getNumber() const
 {
     if (m_number > 0) return m_number;
@@ -123,13 +129,23 @@ Card::Suit Card::getSuit() const
             return Sanguosha->getCard(subcards.first())->getSuit();
         else {
             Color color = Colorless;
+            //Spade, Club, Heart, Diamond, NoSuitBlack, NoSuitRed, NoSuit, SuitToBeDecided = -1
+            Suit suit = SuitToBeDecided;
             foreach (int id, subcards) {
-                Color color2 = Sanguosha->getCard(id)->getColor();
+                const Card *card = Sanguosha->getCard(id);
+                Color color2 = card->getColor();
+                Suit suit2 = card->getSuit();
                 if (color == Colorless)
                     color = color2;
                 else if (color != color2)
                     return NoSuit;
+                if (suit == SuitToBeDecided)
+                    suit = suit2;
+                else if (suit != suit2)
+                    suit = NoSuit;
             }
+            if (suit != NoSuit && suit != SuitToBeDecided)
+                return suit;
             return (color == Red) ? NoSuitRed : NoSuitBlack;
         }
     } else
@@ -273,14 +289,16 @@ QString Card::getPackage() const
         return QString();
 }
 
-QString Card::getFullName(bool include_suit) const
+QString Card::getFullName(bool include_suit, bool include_number) const
 {
     QString name = getName();
     if (include_suit) {
         QString suit_name = Sanguosha->translate(getSuitString());
-        return QString("%1%2 %3").arg(suit_name).arg(getNumberString()).arg(name);
+        return include_number ? QString("%1%2 %3").arg(suit_name).arg(getNumberString()).arg(name) :
+                                QString("%1 %2").arg(suit_name).arg(name);
     } else
-        return QString("%1 %2").arg(getNumberString()).arg(name);
+        return include_number ? QString("%1 %2").arg(getNumberString()).arg(name) :
+                                name;
 }
 
 QString Card::getLogName() const
@@ -325,7 +343,12 @@ QString Card::getCommonEffectName() const
 
 QString Card::getName() const
 {
-    return Sanguosha->translate(objectName());
+    return Card::getName(objectName());
+}
+
+QString Card::getName(const QString &card_name)
+{
+    return Sanguosha->translate(card_name);
 }
 
 QString Card::getSkillName(bool removePrefix) const
@@ -343,7 +366,12 @@ void Card::setSkillName(const QString &name)
 
 QString Card::getDescription() const
 {
-    QString desc = Sanguosha->translate(":" + objectName());
+    return Card::getDescription(objectName());
+}
+
+QString Card::getDescription(const QString &card_name)
+{
+    QString desc = Sanguosha->translate(":" + card_name);
     if (desc.startsWith(":"))
         desc = QString();
     else if (desc.startsWith("[NoAutoRep]"))
@@ -373,7 +401,7 @@ QString Card::getDescription() const
         }
     }
     desc.replace("\n", "<br/>");
-    return tr("<b>[%1]</b> %2").arg(getName()).arg(desc);
+    return tr("<b>[%1]</b> %2").arg(Card::getName(card_name)).arg(desc);
 }
 
 QString Card::toString(bool hidden) const
@@ -413,6 +441,26 @@ void Card::addSubcards(const QList<int> &subcards_list)
 int Card::subcardsLength() const
 {
     return subcards.length();
+}
+
+bool Card::hasBasicSubcards() const
+{
+    foreach(int card_id, subcards) {
+        const Card *c = Sanguosha->getCard(card_id);
+        if(c->getTypeId() == Card::TypeBasic)
+            return true;
+    }
+    return false;
+}
+
+bool Card::hasSubcard(const Card *card) const
+{
+    return hasSubcard(card->getEffectiveId());
+}
+
+bool Card::hasSubcard(int subcard_id) const
+{
+    return subcards.contains(subcard_id);
 }
 
 bool Card::isVirtualCard() const
@@ -512,6 +560,63 @@ const Card *Card::Parse(const QString &str)
         LuaSkillCard *new_card = LuaSkillCard::Parse(str);
         new_card->deleteLater();
         return new_card;
+    } else if (str.startsWith(QChar('&'))) {
+        // normal card
+        QRegExp pattern("&(\\w+)=([^:]+)(:.+)?");
+        QRegExp ex_pattern("&(\\w*)\\[(\\w+):(.+)\\]=([^:]+)(:.+)?");
+
+        QStringList texts;
+        QString card_name, card_suit, card_number;
+        QStringList subcard_ids;
+        QString subcard_str;
+        QString skill_name;
+
+        if (pattern.exactMatch(str)) {
+            texts = pattern.capturedTexts();
+            card_name = texts.at(1);
+            subcard_str = texts.at(2);
+            skill_name = texts.at(3);
+        } else if (ex_pattern.exactMatch(str)) {
+            texts = ex_pattern.capturedTexts();
+            card_name = texts.at(1);
+            card_suit = texts.at(2);
+            card_number = texts.at(3);
+            subcard_str = texts.at(4);
+            skill_name = texts.at(5);
+        } else
+            return NULL;
+
+        if (subcard_str != ".")
+            subcard_ids = subcard_str.split("+");
+
+        Suit suit = suit_map.value(card_suit, Card::NoSuit);
+        int number = 0;
+        if (!card_number.isEmpty()) {
+            if (card_number == "A")
+                number = 1;
+            else if (card_number == "J")
+                number = 11;
+            else if (card_number == "Q")
+                number = 12;
+            else if (card_number == "K")
+                number = 13;
+            else
+                number = card_number.toInt();
+        }
+        Card *card = Sanguosha->cloneCard(card_name, suit, number);
+
+        if (card == NULL)
+            return NULL;
+
+        card->addSubcards(StringList2IntList(subcard_ids));
+
+        if (!skill_name.isEmpty()) {
+            skill_name.remove(0, 1);
+            card->setSkillName(skill_name);
+        }
+
+        card->deleteLater();
+        return card;
     } else if (str.contains(QChar('='))) {
         QRegExp pattern("(\\w+):(\\w*)\\[(\\w+):(.+)\\]=(.+)");
         if (!pattern.exactMatch(str))
@@ -914,6 +1019,15 @@ DummyCard::DummyCard(const QList<int> &subcards) : SkillCard()
     setObjectName("dummy");
     foreach(int id, subcards)
         this->subcards.append(id);
+}
+
+DummyCard::DummyCard(const QList<const Card *> &subcards) : SkillCard()
+{
+    target_fixed = true;
+    handling_method = Card::MethodNone;
+    setObjectName("dummy");
+    foreach(const Card *c, subcards)
+        this->subcards.append(c->getEffectiveId());
 }
 
 QString DummyCard::getType() const

@@ -1,6 +1,10 @@
 ﻿#include "nativesocket.h"
 #include "settings.h"
 #include "src/pch.h"
+#include <QLibrary>
+
+QLibrary *util_win = NULL;
+typedef int (*utilwin_IsPortOccupied)(ulong);
 
 NativeServerSocket::NativeServerSocket()
 {
@@ -19,6 +23,23 @@ void NativeServerSocket::daemonize()
     daemon = new QUdpSocket(this);
     daemon->bind(Config.ServerPort, QUdpSocket::ShareAddress);
     connect(daemon, SIGNAL(readyRead()), this, SLOT(processNewDatagram()));
+}
+
+bool NativeServerSocket::isPortOccupied(ushort port)
+{
+    bool res = false;
+    if (!util_win) {
+        util_win = new QLibrary("utils_win.dll");
+    }
+    if (!util_win->isLoaded() && !util_win->load())
+        return res;
+
+    utilwin_IsPortOccupied qfunc = (utilwin_IsPortOccupied)util_win->resolve("utilwin_IsPortOccupied");
+    if(qfunc)
+    {
+        res = qfunc(port);
+    }
+    return res;
 }
 
 void NativeServerSocket::processNewDatagram()

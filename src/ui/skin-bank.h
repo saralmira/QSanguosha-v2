@@ -251,6 +251,8 @@ public:
         int m_chooseGeneralBoxSwitchIconEachRow;
         int m_chooseGeneralBoxSwitchIconEachRowForTooManyGenerals;
         int m_chooseGeneralBoxNoIconThreshold;
+        int m_chooseCardBoxSwitchIconEachRow;
+        QSize m_chooseCardBoxDenseIconSize;
 
         QSize m_bubbleChatBoxShowAreaSize;
 

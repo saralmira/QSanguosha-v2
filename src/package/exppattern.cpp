@@ -41,6 +41,7 @@ bool ExpPattern::matchOne(const Player *player, const Card *card, QString exp) c
                     positive = false;
                     name = name.mid(1);
                 }
+
                 if (card->isKindOf(name.toLocal8Bit().data())
                     || ("%" + card->objectName() == name)
                     || (card->getEffectiveId() == name.toInt(&isInt) && isInt))

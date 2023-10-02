@@ -88,6 +88,8 @@ local t = {
 	[":collateral"] = "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：装备区内有武器牌且攻击范围内有【杀】的合法目标的一名其他角色A（你需要选择一名A攻击范围内的【杀】的合法目标B）<br /><b>效果</b>：A须对B使用一张【杀】，否则你获得A装备区内的武器牌。",
 	["collateral-slash"] = "%dest 使用了【借刀杀人】，请对 %src 使用一张【杀】",
 	["#CollateralSlash"] = "%from 选择了此【<font color=\"yellow\"><b>杀</b></font>】的目标 %to",
+	["@collateral_target_1"] = "请选择【借刀杀人】的目标",
+	["@collateral_target_2"] = "请选择【借刀杀人】%src 使用【<font color=\"yellow\"><b>杀</b></font>】的目标",
 
 	["duel"] = "决斗",
 	[":duel"] = "锦囊牌<br /><b>时机</b>：出牌阶段<br /><b>目标</b>：一名其他角色<br /><b>效果</b>：由目标角色开始，你与其轮流：打出一张【杀】，否则受到对方的1点伤害并结束此牌结算。",

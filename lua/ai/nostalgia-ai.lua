@@ -327,6 +327,7 @@ end
 sgs.ai_skill_choice.nosxuanfeng = function(self, choices)
 	self:sort(self.enemies, "defenseSlash")
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 	for _, enemy in ipairs(self.enemies) do
 		if self.player:distanceTo(enemy)<=1 then
 			return "damage"
@@ -542,8 +543,12 @@ sgs.ai_skill_use_func.NosRendeCard = function(card, use, self)
 				if card:isKindOf("Slash") or card:isKindOf("Duel") then
 					local t1 = dummy_use.to:first()
 					if dummy_use.to:length() > 1 then continue
-					elseif t1:getHp() == 1 or sgs.card_lack[t1:objectName()]["Jink"] == 1
-							or t1:isCardLimited(sgs.Sanguosha:cloneCard("jink"), sgs.Card_MethodResponse) then continue
+					else
+						local jink_clone = sgs.Sanguosha:cloneCard("jink")
+						jink_clone:deleteLater()
+						if t1:getHp() == 1 or sgs.card_lack[t1:objectName()]["Jink"] == 1
+							or t1:isCardLimited(jink_clone, sgs.Card_MethodResponse) then continue
+						end
 					end
 				elseif (card:isKindOf("Snatch") or card:isKindOf("Dismantlement")) and self:getEnemyNumBySeat(self.player, friend) > 0 then
 					local hasDelayedTrick
@@ -694,6 +699,7 @@ sgs.ai_skill_choice.nosguhuo = function(self, choices)
 	if nosguhuoname == "normal_slash" then nosguhuoname = "slash" end
 	local nosguhuocard = sgs.Sanguosha:cloneCard(nosguhuoname)
 	local nosguhuotype = nosguhuocard:getClassName()
+	nosguhuocard:deleteLater()
 	if nosguhuotype and self:getRestCardsNum(nosguhuotype, yuji) == 0 and self.player:getHp() > 0 then return "question" end
 	if nosguhuotype and nosguhuotype == "AmazingGrace" then return "noquestion" end
 	if nosguhuotype:match("Slash") then
@@ -739,6 +745,7 @@ sgs.ai_choicemade_filter.skillChoice.nosguhuo = function(self, player, promptlis
 		end
 		if nosguhuoname == "normal_slash" then nosguhuoname = "slash" end
 		local nosguhuocard = sgs.Sanguosha:cloneCard(nosguhuoname)
+		nosguhuocard:deleteLater()
 		if nosguhuocard then
 			local nosguhuotype = nosguhuocard:getClassName()
 			if nosguhuotype and self:getRestCardsNum(nosguhuotype, yuji) > 0 then
@@ -819,6 +826,7 @@ nosguhuo_skill.getTurnUseCard = function(self)
 		for i = 1, #nosguhuos do
 			local forbidden = nosguhuos[i]
 			local forbid = sgs.Sanguosha:cloneCard(forbidden)
+			forbid:deleteLater()
 			if self.player:isLocked(forbid) then
 				table.remove(nosguhuos, i)
 				i = i - 1
@@ -833,6 +841,7 @@ nosguhuo_skill.getTurnUseCard = function(self)
 			local card = fakeCards[math.random(1, #fakeCards)]
 			local newnosguhuo = objectName or nosguhuos[math.random(1, #nosguhuos)]
 			local nosguhuocard = sgs.Sanguosha:cloneCard(newnosguhuo, card:getSuit(), card:getNumber())
+			nosguhuocard:deleteLater()
 			if self:getRestCardsNum(nosguhuocard:getClassName()) > 0 then
 				local dummyuse = { isDummy = true }
 				if newnosguhuo == "peach" then self:useBasicCard(nosguhuocard, dummyuse) else self:useTrickCard(nosguhuocard, dummyuse) end
@@ -888,6 +897,7 @@ nosguhuo_skill.getTurnUseCard = function(self)
 			local objectNames = { "ex_nihilo", "snatch", "dismantlement", "amazing_grace", "archery_attack", "savage_assault", "god_salvation", "duel" }
 			for _, objectName in ipairs(objectNames) do
 				local acard = sgs.Sanguosha:cloneCard(objectName)
+				acard:deleteLater()
 				if self:getRestCardsNum(acard:getClassName()) == 0 then
 					card_objectname = objectName
 					break
@@ -904,6 +914,7 @@ nosguhuo_skill.getTurnUseCard = function(self)
 		if peach_str then
 			local card = sgs.Card_Parse(peach_str)
 			local peach = sgs.Sanguosha:cloneCard("peach", card:getSuit(), card:getNumber())
+			peach:deleteLater()
 			local dummy_use = { isDummy = true }
 			self:useBasicCard(peach, dummy_use)
 			if dummy_use.card then return card end
@@ -913,6 +924,7 @@ nosguhuo_skill.getTurnUseCard = function(self)
 	if slash_str and self:slashIsAvailable() then
 		local card = sgs.Card_Parse(slash_str)
 		local slash = sgs.Sanguosha:cloneCard("slash", card:getSuit(), card:getNumber())
+		slash:deleteLater()
 		local dummy_use = { isDummy = true }
 		self:useBasicCard(slash, dummy_use)
 		if dummy_use.card then return card end
@@ -924,6 +936,7 @@ sgs.ai_skill_use_func.NosGuhuoCard = function(card, use, self)
 	userstring = (userstring:split(":"))[3]
 	local nosguhuocard = sgs.Sanguosha:cloneCard(userstring, card:getSuit(), card:getNumber())
 	nosguhuocard:setSkillName("nosguhuo")
+	nosguhuocard:deleteLater()
 	if nosguhuocard:getTypeId() == sgs.Card_TypeBasic then
 		if not use.isDummy and use.card and nosguhuocard:isKindOf("Slash") and (not use.to or use.to:isEmpty()) then return end
 		self:useBasicCard(nosguhuocard, use)
@@ -1123,6 +1136,7 @@ sgs.ai_playerchosen_intention.nosmieji = -50
 
 sgs.ai_skill_use["@@nosmieji"] = function(self, prompt) -- extra target for Collateral
 	local collateral = sgs.Sanguosha:cloneCard("collateral", sgs.Card_NoSuitBlack)
+	collateral:deleteLater()
 	local dummy_use = { isDummy = true, to = sgs.SPlayerList(), current_targets = {} }
 	dummy_use.current_targets = self.player:property("extra_collateral_current_targets"):toString():split("+")
 	self:useCardCollateral(collateral, dummy_use)
@@ -1608,6 +1622,7 @@ sgs.ai_skill_use["@@nostuxi"] = function(self, prompt)
 		for _, enemy in ipairs(self.enemies) do
 			local def = sgs.getDefenseSlash(enemy)
 			local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+			slash:deleteLater()
 			local eff = self:slashIsEffective(slash, enemy, zhijiangwei) and sgs.isGoodTarget(enemy, self.enemies, self)
 			if zhijiangwei:canSlash(enemy, slash) and not self:slashProhibit(slash, enemy, zhijiangwei) and eff and def < 4 then
 				isGood = true
@@ -1737,6 +1752,7 @@ function sgs.ai_cardneed.nosluoyi(to, card, self)
 	local slash_num = 0
 	local target
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 
 	local cards = to:getHandcards()
 	local need_slash = true
@@ -1940,6 +1956,7 @@ noskurou_skill.getTurnUseCard=function(self,inclusive)
 		return sgs.Card_Parse("@NosKurouCard=.")
 	end
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 	if (self.player:getWeapon() and self.player:getWeapon():isKindOf("Crossbow")) or self.player:hasSkill("paoxiao") then
 		for _, enemy in ipairs(self.enemies) do
 			if self.player:canSlash(enemy, nil, true) and self:slashIsEffective(slash, enemy)

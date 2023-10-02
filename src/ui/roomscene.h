@@ -31,6 +31,7 @@ class ShowOrPindianSkill;
 class DiscardSkill;
 class NosYijiViewAsSkill;
 class ChoosePlayerSkill;
+class ChoosePlayersSkill;
 class ClientLogBox;
 class ChatWidget;
 class QSanSelectableItem;
@@ -180,6 +181,7 @@ public slots:
     void chooseOrder(QSanProtocol::Game3v3ChooseOrderCommand reason);
     void chooseRole(const QString &scheme, const QStringList &roles);
     void chooseDirection();
+    void chooseTemplateCard(const QStringList &cards_name, const QString &reason);
 
     void bringToFront(QGraphicsItem *item);
     void arrangeSeats(const QList<const ClientPlayer *> &seats);
@@ -266,6 +268,7 @@ private:
     DiscardSkill *discard_skill;
     NosYijiViewAsSkill *yiji_skill;
     ChoosePlayerSkill *choose_skill;
+    ChoosePlayersSkill *choose_skill2;
 
     QList<const Player *> selected_targets;
 

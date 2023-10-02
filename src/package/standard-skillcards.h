@@ -189,4 +189,31 @@ private:
     static bool hasShuGenerals(const Player *player);
 };
 
+class ZhishiCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE ZhishiCard();
+    bool targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const;
+    void onEffect(const CardEffectStruct &effect) const;
+};
+
+class GeneralBasicViewAsCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE GeneralBasicViewAsCard(QString skillname);
+
+    bool targetFixed() const;
+    bool targetFilter(const QList<const Player *> &targets, const Player *to_select, const Player *Self) const;
+    bool targetsFeasible(const QList<const Player *> &targets, const Player *Self) const;
+
+    const Card *validate(CardUseStruct &card_use) const;
+
+protected:
+    QString object_name;
+};
+
 #endif

@@ -45,5 +45,14 @@ public:
     void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
 };
 
+class NiepanCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE NiepanCard();
+    void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
+};
+
 #endif
 

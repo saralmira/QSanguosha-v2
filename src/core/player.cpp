@@ -10,11 +10,11 @@
 
 Player::Player(QObject *parent)
     : QObject(parent), owner(false), general(NULL), general2(NULL),
-    m_gender(General::Sexless), hp(-1), max_hp(-1), state("online"), seat(0), alive(true),
+    m_gender(General::Sexless), hp(-1), max_hp(-1), role_shown(false), state("online"), seat(0), alive(true),
     phase(NotActive),
     weapon(NULL), armor(NULL), defensive_horse(NULL), offensive_horse(NULL), treasure(NULL),
-    face_up(true), chained(false),
-    role_shown(false), pile_open(QMap<QString, QStringList>())
+    face_up(true), chained(false)
+    /*, pile_open(QMap<QString, QStringList>())*/
 {
 }
 
@@ -168,6 +168,7 @@ QStringList Player::getFlagList() const
 
 void Player::setFlags(const QString &flag)
 {
+    // auto clear while round ends
     if (flag == ".") {
         clearFlags();
         return;
@@ -194,7 +195,7 @@ void Player::clearFlags()
 
 int Player::getAttackRange(bool include_weapon) const
 {
-    if (hasFlag("InfinityAttackRange") || getMark("InfinityAttackRange") > 0)
+    if (isInfinityAttackRange())
         return 1000;
 
     include_weapon = include_weapon && weapon != NULL;
@@ -222,7 +223,6 @@ int Player::getAttackRange(bool include_weapon) const
 bool Player::inMyAttackRange(const Player *other, int distance_fix) const
 {
     // for zhaofu
-
     foreach (const Player *p, getAliveSiblings()) {
         if (p->hasLordSkill("zhaofu") && p->distanceTo(other) == 1 && getKingdom() == "wu")
             return true;
@@ -231,6 +231,11 @@ bool Player::inMyAttackRange(const Player *other, int distance_fix) const
     // end
     if (attack_range_pair.contains(other)) return true;
     return this != other && distanceTo(other, distance_fix) <= getAttackRange();
+}
+
+bool Player::isInfinityAttackRange() const
+{
+    return hasFlag("InfinityAttackRange") || getMark("InfinityAttackRange") > 0;
 }
 
 void Player::setFixedDistance(const Player *player, int distance)
@@ -411,6 +416,7 @@ bool Player::hasSkill(const QString &skill_name, bool include_lose) const
                 return false;
         }
     }
+
     return skills.contains(skill_name)
         || acquired_skills.contains(skill_name);
 }
@@ -489,6 +495,16 @@ bool Player::hasLordSkill(const Skill *skill, bool include_lose /* = false */) c
 {
     Q_ASSERT(skill != NULL);
     return hasLordSkill(skill->objectName(), include_lose);
+}
+
+bool Player::hasHandCard(const QString &pat) const
+{
+    ExpPattern pattern(pat);
+    foreach (const Card *card, this->getHandcards()) {
+        if (pattern.match(NULL, card))
+            return true;
+    }
+    return false;
 }
 
 void Player::acquireSkill(const QString &skill_name)
@@ -913,6 +929,9 @@ bool Player::canSlash(const Player *other, const Card *slash, bool distance_limi
     if (isProhibited(other, THIS_SLASH, others))
         return false;
 
+    if (isLocked(THIS_SLASH, false))
+        return false;
+
     if (distance_limit)
         return inMyAttackRange(other, rangefix - Sanguosha->correctCardTarget(TargetModSkill::DistanceLimit, this, THIS_SLASH));
     else
@@ -925,9 +944,11 @@ bool Player::canSlash(const Player *other, bool distance_limit, int rangefix, co
     return canSlash(other, NULL, distance_limit, rangefix, others);
 }
 
-int Player::getCardCount(bool include_equip, bool include_judging) const
+int Player::getCardCount(bool include_equip, bool include_judging, bool include_hand) const
 {
-    int count = getHandcardNum();
+    int count = 0;
+    if (include_hand)
+        count += getHandcardNum();
     if (include_equip) {
         if (weapon) count++;
         if (armor) count++;
@@ -938,6 +959,47 @@ int Player::getCardCount(bool include_equip, bool include_judging) const
     if (include_judging)
         count += judging_area.length();
     return count;
+}
+
+int Player::getCardCount(const QString &flags) const
+{
+    bool h = false, e = false, j = false;
+    if (flags.contains("h"))
+        h = true;
+    if (flags.contains("e"))
+        e = true;
+    if (flags.contains("j"))
+        j = true;
+    return getCardCount(e, j, h);
+}
+
+QList<const Card *> Player::getHandlingMethodCards(const QString &flags, Card::HandlingMethod method) const
+{
+    QList<const Card *> cards;
+    if (flags.contains("h")) {
+        foreach (const Card *c, getHandcards()) {
+            if (!isCardLimited(c, method, true))
+                cards << c;
+        }
+    }
+    if (flags.contains("e")) {
+        foreach (const Card *c, getEquips()) {
+            if (!isCardLimited(c, method, false))
+                cards << c;
+        }
+    }
+    if (flags.contains("j")) {
+        foreach (const Card *c, getJudgingArea()) {
+            if (!isCardLimited(c, method, false))
+                cards << c;
+        }
+    }
+    return cards;
+}
+
+bool Player::hasPile(const QString &pile_name) const
+{
+    return piles.contains(pile_name);
 }
 
 QList<int> Player::getPile(const QString &pile_name) const
@@ -997,7 +1059,12 @@ int Player::getSlashCount() const
 {
     return history.value("Slash", 0)
         + history.value("ThunderSlash", 0)
-        + history.value("FireSlash", 0);
+            + history.value("FireSlash", 0);
+}
+
+int Player::getHistory(const QString &name) const
+{
+    return history.value(name, 0);
 }
 
 void Player::clearHistory(const QString &name)
@@ -1113,6 +1180,42 @@ QString Player::getSkillDescription() const
 
     if (description.isEmpty()) description = tr("No skills");
     return description;
+}
+
+const Skill *Player::getSkill(const QString &skill_name) const
+{
+    QList<const Skill *> skills = this->getSkillList(false, false);
+    foreach (const Skill *skill, skills) {
+        if (skill->objectName() == skill_name)
+            return skill;
+    }
+    return NULL;
+}
+
+const ViewAsSkill *Player::getViewAsSkill(const QString &skill_name) const
+{
+    QList<const Skill *> skills = this->getSkillList(false, false);
+    foreach (const Skill *skill, skills) {
+        if (skill->inherits("ViewAsSkill") && skill->objectName() == skill_name)
+            return qobject_cast<const ViewAsSkill *>(skill);
+    }
+    return NULL;
+}
+
+const ZeroCardViewAsSkill *Player::getZeroCardViewAsSkill(const QString &skill_name) const
+{
+    QList<const Skill *> skills = this->getSkillList(false, false);
+    foreach (const Skill *skill, skills) {
+        if (skill->inherits("ZeroCardViewAsSkill") && skill->objectName() == skill_name)
+            return qobject_cast<const ZeroCardViewAsSkill *>(skill);
+    }
+    return NULL;
+}
+
+bool Player::isSkillEnabledAtPlay(const char *skill_name) const
+{
+    auto skill = this->getViewAsSkill(skill_name);
+    return skill && skill->isEnabledAtPlay(this);
 }
 
 bool Player::isProhibited(const Player *to, const Card *card, const QList<const Player *> &others) const
@@ -1285,6 +1388,20 @@ bool Player::isNostalGeneral(const Player *p, const QString &general_name)
     return false;
 }
 
+bool Player::isDying() const
+{
+    return hasFlag("Global_Dying");
+}
+
+bool Player::canSlashSomeone() const
+{
+    foreach (const Player *p, this->getAliveSiblings()) {
+        if (canSlash(p))
+            return true;
+    }
+    return false;
+}
+
 void Player::loseAttachLordSkill( const QString &skill_name )
 {
     int nline = skill_name.indexOf("-");
@@ -1333,3 +1450,4 @@ void Player::loseAttachLordSkill( const QString &skill_name )
         loseSkill(skill_name);
     }
 }
+

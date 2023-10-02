@@ -243,6 +243,7 @@ end
 ]]--
 sgs.ai_skill_playerchosen.beifa = function(self, targets)
 	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+	slash:deleteLater()
 	local targetlist = {}
 	for _,p in sgs.qlist(targets) do
 		if not self:slashProhibit(slash, p) then
@@ -356,6 +357,7 @@ sgs.ai_skill_use["@@bawang"] = function(self, prompt)
 	local first_index, second_index
 	self:sort(self.enemies, "defenseSlash")
 	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+	slash:deleteLater()
 	for i=1, #self.enemies do
 		if not (self.enemies[i]:hasSkill("kongcheng") and self.enemies[i]:isKongcheng()) and not self:slashProhibit(slash ,self.enemies[i]) then
 			if not first_index then
@@ -650,6 +652,7 @@ sgs.ai_slash_prohibit.badao = function(self, from, to, card)
 		if has_red_slash then return card:isBlack() end
 		if getCardsNum("Slash", to, self.player) > 1 then
 			local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+			slash:deleteLater()
 			for _, target in ipairs(self:getEnemies(to)) do
 				if to:canSlash(target, slash) and not self:slashProhibit(slash, target)
 					and self:slashIsEffective(slash, target) and not self:getDamagedEffects(target, to, true)

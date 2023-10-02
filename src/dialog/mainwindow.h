@@ -90,7 +90,7 @@ private slots:
     void on_actionExit_triggered();
     void on_actionCard_editor_triggered();
 
-    void checkVersion(const QString &server_version, const QString &server_mod);
+    void checkVersion(const QString &server_version, const QString &server_mod, const bool enable_update);
     void networkError(const QString &error_msg);
     void enterRoom();
     void gotoScene(QGraphicsScene *scene);

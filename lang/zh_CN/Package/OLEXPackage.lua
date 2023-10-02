@@ -1,0 +1,48 @@
+-- translation for DiyYaoPackage
+
+return {
+	["olex"] = "限定专属包",
+
+	["#olex_sunyi"] = "虓风快意",
+	["olex_sunyi"] = "孙翊",
+	["olex_jiqiao"] = "激峭",
+	[":olex_jiqiao"] = "①出牌阶段开始时，你可以将牌堆顶的X张牌至于武将牌上（X为你的体力上限）；②当你你使用一张牌结算结束后，若你的武将牌上有“激峭”牌，你获得其中一张，然后若剩余其中两种颜色牌的数量相等，你回复1点体力，否则你失去1点体力；③出牌阶段结束时，移去所有“激峭”牌。",
+	["olex_xiongyi"] = "凶疑",
+	[":olex_xiongyi"] = "限定技，当你处于濒死状态时，若徐氏：不在场，你可以将体力值回复至3点并将武将牌替换为徐氏（体力上限不变）；在场，你可以将体力值回复至1点并获得技能“魂姿”。",
+	["olex_xiongyi:choice1"] = "是否将体力值回复至3点并将武将牌替换为徐氏（体力上限不变）？",
+	["olex_xiongyi:choice2"] = "是否将体力值回复至1点并获得技能“魂姿”？",
+	["$olex_jiqiao1"] = "为将者，当躬冒矢石。",
+	["$olex_jiqiao2"] = "吾承父兄之志，危又何惧？",
+	["$olex_xiongyi1"] = "此仇不报，吾恨难消！",
+	["$olex_xiongyi2"] = "功业未立，汝可继之！",
+	["~olex_sunyi"] = "功业未成而身先死，惜哉，惜哉！",
+	
+	["#olex_caojinyu"] = "金乡公主",
+	["olex_caojinyu"] = "曹金玉",
+	["olex_yuqi"] = "隅泣",
+	["olexyuqi"] = "隅泣",
+	[":olex_yuqi"] = "每回合限两次，当你距离0以内的一名角色受到伤害后，你可以观看牌堆顶的一张牌，将其中至多一张牌交给受伤角色，获得至多一张牌，剩余的牌放回牌堆顶。",
+	["@olex_yuqi_target"] = "将其中至多 %arg 张牌交给 %src",
+	["@olex_yuqi_player"] = "获得其中至多 %arg 张牌",
+	["~olex_yuqi"] = "选择牌 -> 点击确定",
+	["olex_shanshen"] = "善身",
+	[":olex_shanshen"] = "当有角色死亡时，你可令“隅泣”中的一个数字+2（单项不能超过5）。然后若你未对其造成过伤害，你回复1点体力。",
+	["olex_shanshen:dist"] = "距离（%arg）",
+	["olex_shanshen:total"] = "观看数量（%arg）",
+	["olex_shanshen:target"] = "交给受伤角色牌数（%arg）",
+	["olex_shanshen:player"] = "自己获得牌数（%arg）",
+	["olex_xianjing"] = "娴静",
+	[":olex_xianjing"] = "准备阶段，你可令“隅泣”中的一个数字+1（单项不能超过5）。若你未受伤，你可再令“隅泣”中的一个数字+1。",
+	["olex_xianjing:dist"] = "距离（%arg）",
+	["olex_xianjing:total"] = "观看数量（%arg）",
+	["olex_xianjing:target"] = "交给受伤角色牌数（%arg）",
+	["olex_xianjing:player"] = "自己获得牌数（%arg）",
+	["$olex_yuqi1"] = "柔情愁肠断，寂寞梧桐落。",
+	["$olex_yuqi2"] = "泪眼婆娑泣，伊人憔悴消。",
+	["$olex_shanshen1"] = "心清则明，积善则安。",
+	["$olex_shanshen2"] = "天子之家，需守心静身。",
+	["$olex_xianjing1"] = "媖娴美好，典雅温蕴。",
+	["$olex_xianjing2"] = "娴雅淑静，冰清玉洁。",
+	["~olex_caojinyu"] = "余香空留此，玉指轻揉散。"
+}
+

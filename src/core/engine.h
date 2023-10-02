@@ -95,6 +95,7 @@ public:
     QList<int> getRandomCards() const;
     QString getRandomGeneralName() const;
     QStringList getLimitedGeneralNames(const QString &kingdom = QString()) const;
+    QStringList getGeneralNamesCustom(bool include_hidden = false, bool include_banpackages = false, const QString &kingdom = QString()) const;
     inline QList<const General *> getAllGenerals() const
     {
         return findChildren<const General *>();
@@ -122,6 +123,7 @@ public:
 
     QString findConvertFrom(const QString &general_name) const;
     bool isGeneralHidden(const QString &general_name) const;
+
 
 private:
     void _loadMiniScenarios();

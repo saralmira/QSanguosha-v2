@@ -827,13 +827,13 @@ class BotuCount : public TriggerSkill
 public:
     BotuCount() : TriggerSkill("#botu-count")
     {
-        events << PreCardUsed << CardResponded << TurnStart;
+        events << PreCardUsed << CardResponded << EventPhaseEnd;
         global = true;
     }
 
-    bool trigger(TriggerEvent triggerEvent, Room *, ServerPlayer *player, QVariant &data) const
+    bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
     {
-        if (player->getPhase() == Player::Play && (triggerEvent == PreCardUsed || triggerEvent == CardResponded)) {
+        if (player->getPhase() == Player::Play && (triggerEvent == PreCardUsed || triggerEvent == CardResponded) && player->hasSkill("botu")) {
             const Card *c = NULL;
             if (triggerEvent == PreCardUsed)
                 c = data.value<CardUseStruct>().card;
@@ -841,9 +841,13 @@ public:
                 c = data.value<CardResponseStruct>().m_card;
             if (c && int(c->getSuit()) <= 3) {
                 player->setMark("botu", player->getMark("botu") | (1 << int(c->getSuit())));
+                room->setPlayerMark(player, "@" + c->getSuitString(), 1);
             }
-        } else if (triggerEvent == TurnStart) {
-            player->setMark("botu", 0);
+        } else if (triggerEvent == EventPhaseEnd && player->getPhase() == Player::Finish) {
+            room->setPlayerMark(player, "@spade", 0);
+            room->setPlayerMark(player, "@heart", 0);
+            room->setPlayerMark(player, "@club", 0);
+            room->setPlayerMark(player, "@diamond", 0);
         }
 
         return false;
@@ -867,7 +871,9 @@ public:
     {
         Room *room = player->getRoom();
         if (player->getPhase() == Player::NotActive) {
-            if (player->getMark("botu") != 0xF || !player->askForSkillInvoke("botu"))
+            int mbotu = player->getMark("botu");
+            room->setPlayerMark(player, "botu", 0);
+            if (mbotu != 0xF || !player->askForSkillInvoke(objectName()))
                 return false;
             room->broadcastSkillInvoke(objectName());
             player->gainAnExtraTurn();

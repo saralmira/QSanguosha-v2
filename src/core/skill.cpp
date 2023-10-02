@@ -13,7 +13,7 @@
 
 
 Skill::Skill(const QString &name, Frequency frequency)
-    : frequency(frequency), limit_mark(QString()), lord_skill(false), attached_lord_skill(false)
+    : frequency(frequency), limit_mark(QString()), lord_skill(false), attached_lord_skill(false), m_skillType(NotSpecified)
 {
     static QChar lord_symbol('$');
     static QChar attached_lord_symbol('&');
@@ -144,6 +144,13 @@ void Skill::playAudioEffect(int index, bool superpose) const
     }
 }
 
+void Skill::playAudioEffectRand(int minindex, int maxindex, bool superpose) const
+{
+    if (maxindex <= minindex)
+        return;
+    playAudioEffect(qrand() % (maxindex - minindex) + 1, superpose);
+}
+
 Skill::Frequency Skill::getFrequency(const Player *) const
 {
     return frequency;
@@ -157,6 +164,11 @@ QString Skill::getLimitMark() const
 QStringList Skill::getSources() const
 {
     return sources;
+}
+
+bool Skill::isDetachReasonable() const
+{
+    return !inherits("SPConvertSkill") && !isAttachedLordSkill();
 }
 
 QDialog *Skill::getDialog() const
@@ -283,8 +295,13 @@ FilterSkill::FilterSkill(const QString &name)
     frequency = Compulsory;
 }
 
+bool FilterSkill::canFilter(const Room *, const ServerPlayer *) const
+{
+    return true;
+}
+
 TriggerSkill::TriggerSkill(const QString &name)
-    : Skill(name), view_as_skill(NULL), global(false), dynamic_priority(0.0)
+    : Skill(name), view_as_skill(NULL), global(false), dynamic_priority(0.0), mustskillowner(true)
 {
 }
 
@@ -310,7 +327,7 @@ bool TriggerSkill::triggerable(const ServerPlayer *target, Room *) const
 
 bool TriggerSkill::triggerable(const ServerPlayer *target) const
 {
-    return target != NULL && (global || (target->isAlive() && target->hasSkill(this)));
+    return target != NULL && (global || (target->isAlive() && (!mustskillowner || target->hasSkill(this))));
 }
 
 ScenarioRule::ScenarioRule(Scenario *scenario)

@@ -12,6 +12,8 @@ class Skill : public QObject
 {
     Q_OBJECT
     Q_ENUMS(Frequency)
+    Q_ENUMS(SkillType)
+
 
 public:
     enum Frequency
@@ -22,6 +24,17 @@ public:
         Limited,
         Wake,
         NotCompulsory
+    };
+
+    enum SkillType
+    {
+        NotSpecified,
+        PhaseSkill_RoundStart,
+        PhaseSkill_Draw,
+        PhaseSkill_Play,
+        PhaseSkill_Play_OncePerPhase,
+        PhaseSkill_RoundEnd,
+        TriggerSkill_Damaged
     };
 
     explicit Skill(const QString &name, Frequency frequent = NotFrequent);
@@ -36,10 +49,15 @@ public:
     virtual QDialog *getDialog() const;
 
     void initMediaSource();
-    void playAudioEffect(int index = -1, bool superpose = true) const;
+    void playAudioEffect(int index = -1, bool superpose = false) const;
+    void playAudioEffectRand(int minindex = -1, int maxindex = 1, bool superpose = false) const;
     virtual Frequency getFrequency(const Player *target = NULL) const;
     QString getLimitMark() const;
     QStringList getSources() const;
+
+    // custom
+    bool isDetachReasonable() const;
+    SkillType m_skillType;
 
 protected:
     Frequency frequency;
@@ -56,6 +74,7 @@ class ViewAsSkill : public Skill
     Q_OBJECT
 
 public:
+
     ViewAsSkill(const QString &name);
 
     virtual bool viewFilter(const QList<const Card *> &selected, const Card *to_select) const = 0;
@@ -117,6 +136,8 @@ class FilterSkill : public OneCardViewAsSkill
 
 public:
     FilterSkill(const QString &name);
+
+    virtual bool canFilter(const Room *room, const ServerPlayer *player) const;
 };
 
 class TriggerSkill : public Skill
@@ -151,6 +172,7 @@ protected:
     const ViewAsSkill *view_as_skill;
     QList<TriggerEvent> events;
     bool global;
+    bool mustskillowner;
 
 private:
     mutable double dynamic_priority;

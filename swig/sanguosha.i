@@ -224,6 +224,7 @@ public:
     bool hasUsed(const char *card_class) const;
     int usedTimes(const char *card_class) const;
     int getSlashCount() const;
+    int getHistory(const QString &name) const;
 
     bool hasEquipSkill(const char *skill_name) const;
     QSet<const TriggerSkill *> getTriggerSkills() const;
@@ -233,6 +234,10 @@ public:
     QList<const Skill *> getVisibleSkillList(bool include_equip = false) const;
     QStringList getAcquiredSkills() const;
     QString getSkillDescription() const;
+	const Skill *getSkill(const QString &skill_name) const;
+    const ViewAsSkill *getViewAsSkill(const QString &skill_name) const;
+    const ZeroCardViewAsSkill *getZeroCardViewAsSkill(const QString &skill_name) const;
+    bool isSkillEnabledAtPlay(const char *skill_name) const;
 
     virtual bool isProhibited(const Player *to, const Card *card, const QList<const Player *> &others = QList<const Player *>()) const;
     bool canSlashWithoutCrossbow() const;
@@ -256,6 +261,8 @@ public:
     QList<const Player *> getAliveSiblings() const;
 
     static bool isNostalGeneral(const Player *p, const char *general_name);
+	
+	bool isDying() const;
 };
 
 %extend Player {
@@ -344,6 +351,7 @@ public:
 
     int getGeneralMaxHp() const;
     virtual QString getGameMode() const;
+    int getGeneralHp() const;
 
     QString getIp() const;
     void introduceTo(ServerPlayer *player);
@@ -633,6 +641,17 @@ struct CardResponseStruct {
     bool m_isHandcard;
 };
 
+struct CardInfoStruct
+{
+    CardInfoStruct();
+	
+    QString pattern;
+    QString classname;
+    Card::Suit suit;
+    Card::Color color;
+    int number;
+};
+
 enum TriggerEvent {
     NonTrigger,
 
@@ -667,6 +686,7 @@ enum TriggerEvent {
     PindianVerifying,
     Pindian,
 
+    PreTurnedOver,
     TurnedOver,
     ChainStateChanged,
 
@@ -698,6 +718,7 @@ enum TriggerEvent {
     SlashMissed,
 
     JinkEffect,
+    NullificationUsed,
     NullificationEffect,
 
     CardAsked,
@@ -735,6 +756,7 @@ class Card: public QObject {
 public:
     // enumeration type
     enum Suit { Spade, Club, Heart, Diamond, NoSuitBlack, NoSuitRed, NoSuit, SuitToBeDecided };
+	enum Color { Red, Black, Colorless };
     enum HandlingMethod { MethodNone, MethodUse, MethodResponse, MethodDiscard, MethodRecast, MethodPindian };
     static const Suit AllSuits[4];
 
@@ -760,10 +782,11 @@ public:
     void setSuit(Suit suit);
 
     bool sameColorWith(const Card *other) const;
+	Color getColor() const;
     bool isEquipped() const;
 
     QString getPackage() const;
-    QString getFullName(bool include_suit = false) const;
+	QString getFullName(bool include_suit = false, bool include_number = true) const;
     QString getLogName() const;
     QString getName() const;
     QString getSkillName(bool removePrefix = true) const;
@@ -1193,6 +1216,9 @@ public:
     void moveCardsAtomic(QList<CardsMoveStruct> cards_move, bool forceMoveVisible);
     void moveCardsAtomic(CardsMoveStruct cards_move, bool forceMoveVisible);
 
+	// custom methods
+    bool isArmorNullified(ServerPlayer *player);
+
     // interactive methods
     void activate(ServerPlayer *player, CardUseStruct &card_use);
     Card::Suit askForSuit(ServerPlayer *player, const char *reason);
@@ -1226,9 +1252,11 @@ public:
     QList<const Card *> askForPindianRace(ServerPlayer *from, ServerPlayer *to, const char *reason);
     ServerPlayer *askForPlayerChosen(ServerPlayer *player, const QList<ServerPlayer *> &targets, const char *reason,
                                      const char *prompt = NULL, bool optional = false, bool notify_skill = false);
-    QString askForGeneral(ServerPlayer *player, const char *generals, char *default_choice = NULL);
+    QList<ServerPlayer *> askForPlayersChosen(ServerPlayer *player, const QList<ServerPlayer *> &targets, const QString &reason,
+											  const QString &prompt = QString(), bool optional = false, bool notify_skill = false);
+	QString askForGeneral(ServerPlayer *player, const char *generals, char *default_choice = NULL);
     const Card *askForSinglePeach(ServerPlayer *player, ServerPlayer *dying);
-    void addPlayerHistory(ServerPlayer *player, const char *key, int times = 1);
+    void addPlayerHistory(ServerPlayer *player, const char *key, int times = 1, bool broadcast = false);
 
     void broadcastInvoke(const char *method, const char *arg = ".", ServerPlayer *except = NULL);
     bool doNotify(ServerPlayer *player, int command, const char *arg);

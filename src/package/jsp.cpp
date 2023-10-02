@@ -127,43 +127,65 @@ class Cihuai : public TriggerSkill
 public:
     Cihuai() : TriggerSkill("cihuai")
     {
-        events << EventPhaseStart << CardsMoveOneTime << Death;
-        view_as_skill = new CihuaiVS;
+        events << CardFinished;
+        //view_as_skill = new CihuaiVS;
     }
 
-    bool triggerable(const ServerPlayer *target) const
-    {
-        return target != NULL && target->isAlive() && (target->hasSkill(this) || target->getMark("ViewAsSkill_cihuaiEffect") > 0);
-    }
+    //bool triggerable(const ServerPlayer *target) const
+    //{
+    //    return target != NULL && target->isAlive() && (target->hasSkill(this) || target->getMark("ViewAsSkill_cihuaiEffect") > 0);
+    //}
 
     bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
     {
-        if (triggerEvent == EventPhaseStart) {
-            if (player->getPhase() == Player::Play && !player->isKongcheng() && TriggerSkill::triggerable(player) && player->askForSkillInvoke(this, data)) {
-                room->showAllCards(player);
-                bool flag = true;
-                foreach (const Card *card, player->getHandcards()) {
-                    if (card->isKindOf("Slash")) {
-                        flag = false;
-                        break;
-                    }
+        //if (triggerEvent == EventPhaseStart) {
+        //    if (player->getPhase() == Player::Play && !player->isKongcheng() && TriggerSkill::triggerable(player) && player->askForSkillInvoke(this, data)) {
+        //        room->showAllCards(player);
+        //        bool flag = true;
+        //        foreach (const Card *card, player->getHandcards()) {
+        //            if (card->isKindOf("Slash")) {
+        //                flag = false;
+        //                break;
+        //            }
+        //        }
+        //        room->setPlayerMark(player, "cihuai_handcardnum", player->getHandcardNum());
+        //        if (flag) {
+        //            room->broadcastSkillInvoke(objectName(), 2);
+        //            room->setPlayerMark(player, "@cihuai", 1);
+        //            room->setPlayerMark(player, "ViewAsSkill_cihuaiEffect", 1);
+        //        } else
+        //            room->broadcastSkillInvoke(objectName(), 1);
+        //    }
+        //} else if (triggerEvent == CardsMoveOneTime) {
+        //    if (player->getMark("@cihuai") > 0 && player->getHandcardNum() != player->getMark("cihuai_handcardnum")) {
+        //        room->setPlayerMark(player, "@cihuai", 0);
+        //        room->setPlayerMark(player, "ViewAsSkill_cihuaiEffect", 0);
+        //    }
+        //} else if (triggerEvent == Death) {
+        //    room->setPlayerMark(player, "@cihuai", 0);
+        //    room->setPlayerMark(player, "ViewAsSkill_cihuaiEffect", 0);
+        //}
+        if (triggerEvent == CardFinished) {
+            CardUseStruct card_use = data.value<CardUseStruct>();
+            ServerPlayer *target = card_use.to.first();
+            if (card_use.card && card_use.card->isKindOf("Slash") && card_use.to.size() == 1 && target && target != player
+                && target->isAlive() && player->isAlive() && player->canSlash(target, false)
+                && room->askForSkillInvoke(player, objectName(), data)) {
+                room->broadcastSkillInvoke(objectName());
+                JudgeStruct judge;
+                judge.good = true;
+                judge.play_animation = true;
+                judge.reason = objectName();
+                judge.pattern = ".|red";
+                judge.who = player;
+                room->judge(judge);
+
+                if (judge.isGood() && target && target->isAlive() && player->isAlive()) {
+                    Slash *slash = new Slash(Card::NoSuit, 0);
+                    slash->setSkillName(objectName());
+                    room->useCard(CardUseStruct(slash, player, target, true), true);
                 }
-                room->setPlayerMark(player, "cihuai_handcardnum", player->getHandcardNum());
-                if (flag) {
-                    room->broadcastSkillInvoke(objectName(), 2);
-                    room->setPlayerMark(player, "@cihuai", 1);
-                    room->setPlayerMark(player, "ViewAsSkill_cihuaiEffect", 1);
-                } else
-                    room->broadcastSkillInvoke(objectName(), 1);
             }
-        } else if (triggerEvent == CardsMoveOneTime) {
-            if (player->getMark("@cihuai") > 0 && player->getHandcardNum() != player->getMark("cihuai_handcardnum")) {
-                room->setPlayerMark(player, "@cihuai", 0);
-                room->setPlayerMark(player, "ViewAsSkill_cihuaiEffect", 0);
-            }
-        } else if (triggerEvent == Death) {
-            room->setPlayerMark(player, "@cihuai", 0);
-            room->setPlayerMark(player, "ViewAsSkill_cihuaiEffect", 0);
         }
         return false;
     }
@@ -256,8 +278,10 @@ public:
         //room->doLightbox("$JspdanqiAnimate");
         room->doSuperLightbox("jsp_guanyu", "jspdanqi");
         room->setPlayerMark(target, objectName(), 1);
-        if (room->changeMaxHpForAwakenSkill(target) && target->getMark(objectName()) > 0)
-            room->handleAcquireDetachSkills(target, "mashu|nuzhan");
+        if (room->changeMaxHpForAwakenSkill(target) && target->getMark(objectName()) > 0) {
+            room->recover(target, RecoverStruct(target, NULL, 2));
+            room->handleAcquireDetachSkills(target, "mashu|nuzhan|shuixi");
+        }
 
         return false;
     }
@@ -469,6 +493,7 @@ public:
         room->setPlayerMark(target, "@suiren", 0);
         
         room->handleAcquireDetachSkills(target, "-yicong");
+        room->acquireSkill(target, "yinqiang");
         int maxhp = target->getMaxHp() + 1;
         room->setPlayerProperty(target, "maxhp", maxhp);
         room->recover(target, RecoverStruct());
@@ -480,6 +505,45 @@ public:
     }
 };
 
+class Yinqiang : public TriggerSkill
+{
+public:
+    Yinqiang() : TriggerSkill("yinqiang")
+    {
+        events << TargetSpecified;
+    }
+
+    bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
+    {
+        if (triggerEvent == TargetSpecified) {
+            CardUseStruct use = data.value<CardUseStruct>();
+            if (!use.card->isKindOf("Slash"))
+                return false;
+
+            for (int i = 0; i < use.to.length(); i++) {
+                ServerPlayer *p = use.to[i];
+                if (!player->isAlive()) break;
+                if (player->askForSkillInvoke(this, QVariant::fromValue(p))) {
+                    room->broadcastSkillInvoke(objectName());
+                    const Card *card = room->showCardOfDrawPile(player, objectName(), true);
+                    if (!card->canSpecifyTarget(player))
+                        continue;
+                    QList<ServerPlayer *> targets;
+                    targets << player << p;
+                    if (!player->isProhibited(player, card))
+                        targets << player;
+                    if (!player->isProhibited(p, card))
+                        targets << p;
+                    auto target = room->askForPlayerChosen(player, targets, objectName(), QString("yinqiang-invoke:::::%1").arg(card->getId()), true);
+                    if (!target || !target->isAlive())
+                        continue;
+                    room->useCard(CardUseStruct(card, player, target));
+                }
+            }
+        }
+        return false;
+    }
+};
 
 JiqiaoCard::JiqiaoCard()
 {
@@ -705,7 +769,7 @@ JSPPackage::JSPPackage()
     related_skills.insertMulti("linglong", "#linglong-horse");
     related_skills.insertMulti("linglong", "#linglong-treasure");
 
-    skills << new Nuzhan;
+    skills << new Nuzhan << new Yinqiang;
 
     addMetaObject<JiqiaoCard>();
 }

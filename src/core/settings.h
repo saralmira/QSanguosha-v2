@@ -37,6 +37,7 @@ public:
     bool EnableSame;
     bool EnableBasara;
     bool EnableHegemony;
+    bool EnableTransform;
     int MaxHpScheme;
     int Scheme0Subtraction;
     bool PreventAwakenBelow3;
@@ -48,6 +49,7 @@ public:
     int AIDelayAD;
     bool SurrenderAtDeath;
     bool EnableLuckCard;
+    bool EnableClientUpdate;
     ushort ServerPort;
     bool DisableLua;
 
@@ -85,6 +87,8 @@ public:
 
     QString BackgroundImage;
     int BubbleChatBoxKeepTime;
+
+    bool OneClickToChoose;
 
     // consts
     static const int S_SURRENDER_REQUEST_MIN_INTERVAL;

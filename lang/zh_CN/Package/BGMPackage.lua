@@ -30,6 +30,11 @@ return {
 	["yanzheng"] = "严整",
 	[":yanzheng"] = "若你的手牌数大于你的体力值，你可以将一张装备区的牌当【无懈可击】使用。",
 	["#KuiweiDiscard"] = "%from 的“%arg2”效果被触发，须弃置 %arg 张牌";
+	["weikui"] = "伪溃",
+	[":weikui"] = "出牌阶段限一次，你可以失去1点体力并选择一名有手牌的其他角色，你观看其手牌：若其中有【闪】，则视为你对其使用【杀】，且本回合你计算与其的距离视为1；若其中没有【闪】，你弃置其中一张牌。",
+	["lizhan"] = "励战",
+	[":lizhan"] = "回合结束时，你可以令任意名已受伤的角色各摸一张牌。",
+	["lizhan-choose"] = "【励战】选择任意名已受伤的角色，这些角色各摸一张牌",
 
 	["#bgm_pangtong"] = "荆楚之高俊",
 	["bgm_pangtong"] = "☆SP庞统",
@@ -89,6 +94,8 @@ return {
 	["~shichou"] = "选择两张牌→选择一名其他蜀势力角色→点击确定",
 	["$ShichouAnimate"] = "image=image/animate/shichou.png",
 	["#ShichouProtect"] = "%from 的“%arg”被触发，将伤害转移给 %to ",
+	["@hate"] = "誓",
+	["@hate_to"] = "仇",
 
 	["#bgm_daqiao"] = "韶光易逝",
 	["bgm_daqiao"] = "☆SP大乔",

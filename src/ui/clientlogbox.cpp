@@ -5,6 +5,10 @@
 #include "client.h"
 #include "roomscene.h"
 
+static QColor fromColor(223, 116, 70);
+static QColor toColor(207, 86, 143);
+static QColor logColor(224, 187, 124);
+
 ClientLogBox::ClientLogBox(QWidget *parent)
     : QTextEdit(parent)
 {
@@ -31,7 +35,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
     QString from;
     if (!from_general.isEmpty()) {
         from = ClientInstance->getPlayerName(from_general);
-        from = bold(from, Qt::green);
+        from = bold(from, fromColor);
     }
 
     QString to;
@@ -40,7 +44,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
         foreach(QString to, tos)
             to_list << ClientInstance->getPlayerName(to);
         to = to_list.join(", ");
-        to = bold(to, Qt::red);
+        to = bold(to, toColor);
     }
 
     QString log;
@@ -60,7 +64,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
                     log_name += ", " + card->getLogName();
             }
         }
-        log_name = bold(log_name, Qt::yellow);
+        log_name = bold(log_name, logColor);
 
         log = Sanguosha->translate(type);
         log.replace("%from", from);
@@ -68,12 +72,12 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
         log.replace("%card", log_name);
 
         if (!arg2.isEmpty()) {
-            arg2 = bold(Sanguosha->translate(arg2), Qt::yellow);
+            arg2 = bold(Sanguosha->translate(arg2), logColor);
             log.replace("%arg2", arg2);
         }
 
         if (!arg.isEmpty()) {
-            arg = bold(Sanguosha->translate(arg), Qt::yellow);
+            arg = bold(Sanguosha->translate(arg), logColor);
             log.replace("%arg", arg);
         }
 
@@ -92,7 +96,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
         if (card == NULL) return;
 
         QString card_name = card->getLogName();
-        card_name = bold(card_name, Qt::yellow);
+        card_name = bold(card_name, logColor);
 
         QString reason = tr("using");
         if (type.endsWith("_Resp")) reason = tr("playing");
@@ -100,7 +104,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
 
         if (card->isVirtualCard()) {
             QString skill_name = Sanguosha->translate(card->getSkillName());
-            skill_name = bold(skill_name, Qt::yellow);
+            skill_name = bold(skill_name, logColor);
             bool eff = (card->getSkillName(false) != card->getSkillName(true));
             QString meth = eff ? tr("carry out") : tr("use skill");
             QString suffix = eff ? tr("effect") : "";
@@ -109,7 +113,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
             QStringList subcard_list;
             foreach (int card_id, card_ids) {
                 const Card *subcard = Sanguosha->getEngineCard(card_id);
-                subcard_list << bold(subcard->getLogName(), Qt::yellow);
+                subcard_list << bold(subcard->getLogName(), logColor);
             }
 
             QString subcard_str = subcard_list.join(", ");
@@ -130,9 +134,9 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
         } else if (card->getSkillName() != QString()) {
             const Card *real = Sanguosha->getEngineCard(card->getEffectiveId());
             QString skill_name = Sanguosha->translate(card->getSkillName());
-            skill_name = bold(skill_name, Qt::yellow);
+            skill_name = bold(skill_name, logColor);
 
-            QString subcard_str = bold(real->getLogName(), Qt::yellow);
+            QString subcard_str = bold(real->getLogName(), logColor);
             if (card->isKindOf("DelayedTrick"))
                 log = tr("%from %5 [%1] %6 %4 %2 as %3").arg(skill_name).arg(subcard_str).arg(card_name).arg(reason).arg(tr("use skill")).arg(QString());
             else
@@ -146,7 +150,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
         const Card *card = Card::Parse(card_str);
         if (card) {
             QString card_name = card->getLogName();
-            card_name = bold(card_name, Qt::yellow);
+            card_name = bold(card_name, logColor);
             log.replace("%card", card_name);
         }
     }
@@ -155,12 +159,12 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
     log.replace("%to", to);
 
     if (!arg2.isEmpty()) {
-        arg2 = bold(Sanguosha->translate(arg2), Qt::yellow);
+        arg2 = bold(Sanguosha->translate(arg2), logColor);
         log.replace("%arg2", arg2);
     }
 
     if (!arg.isEmpty()) {
-        arg = bold(Sanguosha->translate(arg), Qt::yellow);
+        arg = bold(Sanguosha->translate(arg), logColor);
         log.replace("%arg", arg);
     }
 
@@ -170,7 +174,7 @@ void ClientLogBox::appendLog(const QString &type, const QString &from_general, c
         RoomSceneInstance->setGuhuoLog(final_log);
 }
 
-QString ClientLogBox::bold(const QString &str, QColor color) const
+QString ClientLogBox::bold(const QString &str, QColor &color) const
 {
     return QString("<font color='%1'><b>%2</b></font>").arg(color.name()).arg(str);
 }

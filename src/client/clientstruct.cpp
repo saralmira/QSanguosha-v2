@@ -11,7 +11,8 @@ time_t ServerInfoStruct::getCommandTimeout(QSanProtocol::CommandType command, QS
     if (OperationTimeout == 0)
         return 0;
     else if (command == QSanProtocol::S_COMMAND_CHOOSE_GENERAL
-        || command == QSanProtocol::S_COMMAND_ASK_GENERAL)
+        || command == QSanProtocol::S_COMMAND_ASK_GENERAL
+        || command == QSanProtocol::S_COMMAND_CHOOSE_TEMPLATE_CARD)
         timeOut = OperationTimeout * 1500;
     else if (command == QSanProtocol::S_COMMAND_SKILL_GUANXING
         || command == QSanProtocol::S_COMMAND_ARRANGE_GENERAL)
@@ -68,6 +69,7 @@ bool ServerInfoStruct::parse(const QString &_str)
         EnableSame = flags.contains("T");
         EnableBasara = flags.contains("B");
         EnableHegemony = flags.contains("H");
+        EnableTransform = flags.contains("N");
         EnableAI = flags.contains("A");
         DisableChat = flags.contains("M");
 
@@ -102,6 +104,7 @@ ServerInfoWidget::ServerInfoWidget(bool show_lack)
     same_label = new QLabel;
     basara_label = new QLabel;
     hegemony_label = new QLabel;
+    transform_label = new QLabel;
     random_seat_label = new QLabel;
     enable_cheat_label = new QLabel;
     free_choose_label = new QLabel;
@@ -123,6 +126,7 @@ ServerInfoWidget::ServerInfoWidget(bool show_lack)
     layout->addRow(tr("Same Mode"), same_label);
     layout->addRow(tr("Basara Mode"), basara_label);
     layout->addRow(tr("Hegemony Mode"), hegemony_label);
+    layout->addRow(tr("Transform Mode"), transform_label);
     layout->addRow(tr("Max HP scheme"), max_hp_label);
     layout->addRow(tr("Random seat"), random_seat_label);
     layout->addRow(tr("Enable cheat"), enable_cheat_label);
@@ -152,6 +156,7 @@ void ServerInfoWidget::fill(const ServerInfoStruct &info, const QString &address
     same_label->setText(info.EnableSame ? tr("Enabled") : tr("Disabled"));
     basara_label->setText(info.EnableBasara ? tr("Enabled") : tr("Disabled"));
     hegemony_label->setText(info.EnableHegemony ? tr("Enabled") : tr("Disabled"));
+    transform_label->setText(info.EnableTransform ? tr("Enabled") : tr("Disabled"));
 
     if (info.Enable2ndGeneral) {
         switch (info.MaxHpScheme) {
@@ -212,6 +217,7 @@ void ServerInfoWidget::clear()
     same_label->clear();
     basara_label->clear();
     hegemony_label->clear();
+    transform_label->clear();
     random_seat_label->clear();
     enable_cheat_label->clear();
     free_choose_label->clear();

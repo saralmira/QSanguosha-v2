@@ -33,8 +33,8 @@ return {
 	["~shenzhugeliang"] = "吾命将至，再不能临阵讨贼矣",
 
 	["cv:shencaocao"] = "倚天の剑",
-	["$guixin"] = "山不厌高，海不厌深，周公吐哺，天下归心",
-	["~shencaocao"] = "神龟虽寿，犹有竟时。腾蛇乘雾，终为土灰",
+	["$guixin"] = "周公吐哺，天下归心",
+	["~shencaocao"] = "腾蛇乘雾，终为土灰",
 
 	["cv:shenlvbu"] = "笑傲糨糊",
 	["$kuangbao"] = "(嚎叫声)",

@@ -122,6 +122,7 @@ public:
         view_as_skill = new QiaobianViewAsSkill;
     }
 
+
     bool triggerable(const ServerPlayer *target) const
     {
         return TriggerSkill::triggerable(target) && target->canDiscard(target, "h");
@@ -138,10 +139,16 @@ public:
         case Player::Finish:
         case Player::NotActive: return false;
 
-        case Player::Judge: index = 1; break;
+        case Player::Judge:
+            if (zhanghe->getCardCount(false, true, false))
+                index = 1;
+            break;
         case Player::Draw: index = 2; break;
         case Player::Play: index = 3; break;
-        case Player::Discard: index = 4; break;
+        case Player::Discard:
+            if (zhanghe->getHandcardNum() > zhanghe->getMaxCards())
+                index = 4;
+            break;
         case Player::PhaseNone: Q_ASSERT(false);
         }
 
@@ -449,10 +456,16 @@ public:
         log.arg = objectName();
         room->sendLog(log);
 
-        room->broadcastSkillInvoke(objectName());
+        int index = 1;
+        if (!sunce->hasInnateSkill(this)) {
+            if (sunce->hasSkill("olex_xiongyi"))
+                index = 2 + qrand() % 2;
+        }
+
+        room->broadcastSkillInvoke(objectName(), index);
         //room->doLightbox("$HunziAnimate", 5000);
 
-        room->doSuperLightbox("sunce", "hunzi");
+        room->doSuperLightbox(index == 1 ? "sunce" : "olex_sunyi", "hunzi");
 
         room->setPlayerMark(sunce, "hunzi", 1);
         if (room->changeMaxHpForAwakenSkill(sunce) && sunce->getMark("hunzi") == 1)
@@ -779,7 +792,7 @@ public:
     {
         QStringList l = Self->property("guzheng_toget").toString().split("+");
         QList<int> li = StringList2IntList(l);
-        return li.contains(to_select->getId());
+        return li.contains(to_select->getEffectiveId());
     }
 
     const Card *viewAs(const Card *originalCard) const
@@ -807,28 +820,27 @@ public:
     bool trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer *player, QVariant &data) const
     {
         if (triggerEvent == CardsMoveOneTime && TriggerSkill::triggerable(player)) {
-            ServerPlayer *current = room->getCurrent();
-            CardsMoveOneTimeStruct move = data.value<CardsMoveOneTimeStruct>();
 
+            ServerPlayer *current = room->getCurrent();
             if (!current || player == current || current->getPhase() != Player::Discard)
                 return false;
 
-            QVariantList guzhengToGet = player->tag["GuzhengToGet"].toList();
-            QVariantList guzhengOther = player->tag["GuzhengOther"].toList();
-
+            CardsMoveOneTimeStruct move = data.value<CardsMoveOneTimeStruct>();
             if ((move.reason.m_reason & CardMoveReason::S_MASK_BASIC_REASON) == CardMoveReason::S_REASON_DISCARD) {
-                int i = 0;
-                foreach (int card_id, move.card_ids) {
+
+                QVariantList guzhengToGet = player->tag["GuzhengToGet"].toList();
+                QVariantList guzhengOther = player->tag["GuzhengOther"].toList();
+
+                for (int i = 0; i < move.card_ids.size(); ++i) {
                     if (move.from == current && move.from_places[i] == Player::PlaceHand)
-                        guzhengToGet << card_id;
-                    else if (!guzhengToGet.contains(card_id))
-                        guzhengOther << card_id;
-                    i++;
+                        guzhengToGet << move.card_ids[i];
+                    else if (!guzhengToGet.contains(move.card_ids[i]))
+                        guzhengOther << move.card_ids[i];
                 }
+                player->tag["GuzhengToGet"] = guzhengToGet;
+                player->tag["GuzhengOther"] = guzhengOther;
             }
 
-            player->tag["GuzhengToGet"] = guzhengToGet;
-            player->tag["GuzhengOther"] = guzhengOther;
         } else if (triggerEvent == EventPhaseEnd && player->getPhase() == Player::Discard) {
             ServerPlayer *erzhang = room->findPlayerBySkillName(objectName());
             if (erzhang == NULL)
@@ -861,8 +873,8 @@ public:
 
             QList<int> cards = cardsToGet + cardsOther;
 
-            QString cardsList = IntList2StringList(cards).join("+");
-            room->setPlayerProperty(erzhang, "guzheng_allCards", cardsList);
+            //QString cardsList = IntList2StringList(cards).join("+");
+            //room->setPlayerProperty(erzhang, "guzheng_allCards", cardsList);
             QString toGetList = IntList2StringList(cardsToGet).join("+");
             room->setPlayerProperty(erzhang, "guzheng_toget", toGetList);
 
@@ -888,8 +900,11 @@ public:
                 bool ok = false;
                 int to_back = erzhang->tag["guzheng_card"].toInt(&ok);
                 if (ok) {
-                    player->obtainCard(Sanguosha->getCard(to_back));
-                    cards.removeOne(to_back);
+                    Card *obtaincard = Sanguosha->getCard(to_back);
+                    if (obtaincard) {
+                        player->obtainCard(obtaincard);
+                        cards.removeOne(to_back);
+                    }
                     DummyCard *dummy = new DummyCard(cards);
                     room->obtainCard(erzhang, dummy);
                     delete dummy;
@@ -1062,11 +1077,12 @@ public:
         Room *room = liushan->getRoom();
 
         bool can_invoke = true;
+        int max_cards_count = 0;
         foreach (ServerPlayer *p, room->getAllPlayers()) {
             if (liushan->getHp() > p->getHp()) {
                 can_invoke = false;
-                break;
             }
+            max_cards_count = std::max(p->getHandcardNum(), max_cards_count);
         }
 
         if (can_invoke) {
@@ -1094,6 +1110,8 @@ public:
             room->setPlayerMark(liushan, "ruoyu", 1);
             if (room->changeMaxHpForAwakenSkill(liushan, 1)) {
                 room->recover(liushan, RecoverStruct(liushan));
+                if (max_cards_count > liushan->getHandcardNum())
+                    room->drawCards(liushan, max_cards_count - liushan->getHandcardNum(), objectName());
                 if (liushan->getMark("ruoyu") == 1 && liushan->isLord())
                     room->acquireSkill(liushan, "jijiang");
             }

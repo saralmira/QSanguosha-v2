@@ -181,7 +181,8 @@ bool MiniSceneRule::trigger(TriggerEvent triggerEvent, Room *room, ServerPlayer 
                 room->broadcastProperty(sp, "maxhp");
             }
 
-            str = QString::number(sp->getMaxHp());
+            //str = QString::number(sp->getMaxHp());
+            str = QString::number(sp->getGeneralHp());
             QString str2 = this->players.at(i)["hp"];
             if (str2 != QString()) str = str2;
             sp->setHp(str.toInt());

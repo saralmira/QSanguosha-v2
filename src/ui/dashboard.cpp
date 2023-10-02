@@ -14,6 +14,8 @@
 #include "carditem.h"
 #include "aux-skills.h"
 #include "sprite.h"
+#include "card.h"
+#include "wrapped-card.h"
 
 using namespace QSanProtocol;
 
@@ -328,8 +330,9 @@ void Dashboard::addHandCards(QList<CardItem *> &card_items)
 
 void Dashboard::_addHandCard(CardItem *card_item, bool prepend, const QString &footnote)
 {
+    const Card *card = card_item->getCard();
     if (ClientInstance->getStatus() == Client::Playing)
-        card_item->setEnabled(card_item->getCard()->isAvailable(Self));
+        card_item->setEnabled(card->isAvailable(Self));
     else
         card_item->setEnabled(false);
 
@@ -342,6 +345,12 @@ void Dashboard::_addHandCard(CardItem *card_item, bool prepend, const QString &f
     if (!footnote.isEmpty()) {
         card_item->setFootnote(footnote);
         card_item->showFootnote();
+    } else {
+        const WrappedCard *wcard = qobject_cast<const WrappedCard *>(card);
+        if (wcard->isModified()) {
+            card_item->setFootnote(QString("%1|%2").arg(Sanguosha->translate(wcard->getSkillName())).arg(wcard->getFullName(true)));
+            card_item->showFootnote();
+        }
     }
     if (prepend)
         m_handCards.prepend(card_item);

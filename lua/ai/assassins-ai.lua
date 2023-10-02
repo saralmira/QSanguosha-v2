@@ -154,6 +154,7 @@ sgs.ai_playerchosen_intention.mizhao = 10
 sgs.ai_skill_playerchosen.mizhao = function(self, targets)
 	self:sort(self.enemies, "defense")
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 	local from
 	for _, player in sgs.qlist(self.room:getOtherPlayers(self.player)) do
 		if player:hasFlag("AI_MizhaoTarget") then
@@ -218,7 +219,12 @@ sgs.ai_skill_cardask["@jieyuan-increase"] = function(self, data)
 	local cards = sgs.QList2Table(self.player:getHandcards())
 	self:sortByKeepValue(cards)
 	for _,card in ipairs(cards) do
-		if card:isBlack() then return "$" .. card:getEffectiveId() end
+		if card:isBlack() then 
+			local tos = {}
+			table.insert(tos, target)
+			sgs.updateIntentions(self.player, tos, 30, damage.card)
+			return "$" .. card:getEffectiveId() 
+		end
 	end
 	return "."
 end

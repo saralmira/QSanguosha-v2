@@ -2,6 +2,7 @@
 #include "client.h"
 #include "engine.h"
 #include "clientstruct.h"
+#include "json.h"
 
 ClientPlayer *Self = NULL;
 
@@ -171,7 +172,10 @@ void ClientPlayer::setFlags(const QString &flag)
 
 void ClientPlayer::setMark(const QString &mark, int value)
 {
-    if (marks[mark] == value && mark != "@substitute")
+    static QStringList markfilter;
+    if (markfilter.isEmpty())
+        markfilter << "@substitute" << "@discard";
+    if (marks[mark] == value && !markfilter.contains(mark))
         return;
     marks[mark] = value;
 
@@ -198,13 +202,23 @@ void ClientPlayer::setMark(const QString &mark, int value)
         }
     }
     foreach (QString key, keys) {
-        if (key.startsWith("@") && marks[key] > 0) {
+        if (key.startsWith("@")) {
             int val = marks[key];
             QString mark_text = QString("<img src='image/mark/%1.png' />").arg(key);
-            if (val != 1)
+            //if (key == "@discard") {
+            //    QVariant discard_qvar = this->property("discard_count");
+            //    if (discard_qvar.isNull() || !JsonUtils::isNumber(discard_qvar)) continue;
+            //    mark_text.append(QString("%1").arg(discard_qvar.toInt()));
+            //}
+            if (key == "@discard" || val > 1) {
                 mark_text.append(QString("%1").arg(val));
+            } else if (val <= 0) {
+                continue;
+            }
+
             if (this != Self)
                 mark_text.append("<br>");
+
             text.append(mark_text);
             if (key == "@substitute") {
                 QString hp_str = this->property("tishen_hp").toString();
@@ -220,7 +234,7 @@ void ClientPlayer::setMark(const QString &mark, int value)
 
     mark_doc->setHtml(text);
 
-    if (mark == "@duanchang")
+    if (mark == "@duanchang" || mark == "@bloody")
         emit duanchang_invoked();
 }
 

@@ -3,6 +3,7 @@
 #include "carditem.h"
 #include "engine.h"
 #include "client.h"
+#include "sprite.h"
 
 CardContainer::CardContainer()
     : _m_background("image/system/card-container.png")
@@ -16,6 +17,8 @@ CardContainer::CardContainer()
     close_button->setPos(517, 21);
     close_button->hide();
     connect(close_button, SIGNAL(clicked()), this, SLOT(clear()));
+
+    //animations = new EffectAnimation();
 }
 
 void CardContainer::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
@@ -161,22 +164,66 @@ int CardContainer::getFirstEnabled() const
     return -1;
 }
 
-void CardContainer::startChoose()
+void CardContainer::startChoose(const QList<int> &enabled_ids)
 {
     close_button->hide();
     foreach (CardItem *item, items) {
+
+        if (!enabled_ids.isEmpty() && item->isEnabled() && !enabled_ids.contains(item->getCard()->getId())) {
+            item->setEnabled(false);
+            item->m_setDisabled = true;
+            continue;
+        }
+
         connect(item, SIGNAL(leave_hover()), this, SLOT(grabItem()));
-        connect(item, SIGNAL(double_clicked()), this, SLOT(chooseItem()));
+        if (Config.OneClickToChoose)
+            connect(item, SIGNAL(clicked()), this, SLOT(chooseItem()));
+        else
+            connect(item, SIGNAL(double_clicked()), this, SLOT(chooseItem()));
     }
 }
+
+void CardContainer::endChoose()
+{
+    foreach (CardItem *item, items) {
+        if (item->m_setDisabled) {
+            item->setEnabled(true);
+            item->m_setDisabled = false;
+        }
+    }
+}
+
+/*
+void CardContainer::onCardItemHover()
+{
+    QGraphicsItem *card_item = qobject_cast<QGraphicsItem *>(sender());
+    if (!card_item) return;
+
+    animations->emphasizefade(card_item);
+}
+
+void CardContainer::onCardItemLeaveHover()
+{
+    QGraphicsItem *card_item = qobject_cast<QGraphicsItem *>(sender());
+    if (!card_item) return;
+
+    animations->effectOut(card_item);
+}
+*/
 
 void CardContainer::startGongxin(const QList<int> &enabled_ids)
 {
     if (enabled_ids.isEmpty()) return;
     foreach (CardItem *item, items) {
         const Card *card = item->getCard();
-        if (card && enabled_ids.contains(card->getEffectiveId()))
-            connect(item, SIGNAL(double_clicked()), this, SLOT(gongxinItem()));
+        if (card && enabled_ids.contains(card->getEffectiveId())) {
+
+            connect(item, SIGNAL(leave_hover()), this, SLOT(grabItem()));
+            if (Config.OneClickToChoose)
+                connect(item, SIGNAL(clicked()), this, SLOT(gongxinItem()));
+            else
+                connect(item, SIGNAL(double_clicked()), this, SLOT(gongxinItem()));
+        }
         else
             item->setEnabled(false);
     }
@@ -200,7 +247,9 @@ void CardContainer::chooseItem()
 {
     CardItem *card_item = qobject_cast<CardItem *>(sender());
     if (card_item) {
+        endChoose();
         card_item->disconnect(this);
+        //animations->effectOut(card_item);
         emit item_chosen(card_item->getCard()->getId());
     }
 }
@@ -209,6 +258,7 @@ void CardContainer::gongxinItem()
 {
     CardItem *card_item = qobject_cast<CardItem *>(sender());
     if (card_item) {
+        //animations->effectOut(card_item);
         emit item_gongxined(card_item->getCard()->getId());
         clear();
     }

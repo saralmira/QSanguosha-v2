@@ -111,8 +111,24 @@ local xinzhan_skill={}
 xinzhan_skill.name="xinzhan"
 table.insert(sgs.ai_skills,xinzhan_skill)
 xinzhan_skill.getTurnUseCard=function(self)
-	if not self.player:hasUsed("XinzhanCard") and self.player:getHandcardNum() > self.player:getMaxHp() then
-		return sgs.Card_Parse("@XinzhanCard=.")
+	if self.player:usedTimes("XinzhanCard") < 3 then
+		local cards = sgs.QList2Table(self.player:getHandcards())
+		local choosecard = nil
+		for _, c in ipairs(cards) do
+			if c:getSuit() == sgs.Card_Heart and not self.player:isJilei(c) then
+				choosecard = c
+			end
+		end
+		if choosecard == nil and math.random(0, 10) > 5 then
+			for _, equip in sgs.qlist(self.player:getEquips()) do
+				if equip:getSuit() == sgs.Card_Heart and not self.player:isJilei(equip) then
+					choosecard = equip
+				end
+			end
+		end
+		if choosecard ~= nil then 
+			return sgs.Card_Parse("@XinzhanCard=" .. choosecard:getEffectiveId())
+		end
 	end
 end
 
@@ -670,6 +686,7 @@ sgs.ai_skill_use_func.MingceCard = function(card, use, self)
 	local target
 	local friends = self.friends_noself
 	local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+	slash:deleteLater()
 	self.MingceTarget = nil
 
 	local canMingceTo = function(player)
@@ -717,6 +734,7 @@ sgs.ai_skill_choice.mingce = function(self, choices)
 	for _, player in sgs.qlist(self.room:getAlivePlayers()) do
 		if player:hasFlag("MingceTarget") and not self:isFriend(player) then
 			local slash = sgs.Sanguosha:cloneCard("slash", sgs.Card_NoSuit, 0)
+			slash:deleteLater()
 			if not self:slashProhibit(slash, player) then return "use" end
 		end
 	end

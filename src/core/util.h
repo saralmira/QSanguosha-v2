@@ -7,11 +7,18 @@ class QVariant;
 template<typename T>
 void qShuffle(QList<T> &list)
 {
+    //qsrand(QTime(0,0,0).msecsTo(QTime::currentTime()));
     int i, n = list.length();
     for (i = 0; i < n; i++) {
         int r = qrand() % (n - i) + i;
         list.swap(i, r);
     }
+}
+
+inline const char* QString2CStr(const QString &str)
+{
+    QByteArray arr = str.toLocal8Bit();
+    return arr.data();
 }
 
 // lua interpreter related
@@ -22,6 +29,8 @@ QVariant GetValueFromLuaState(lua_State *L, const char *table_name, const char *
 
 QStringList IntList2StringList(const QList<int> &intlist);
 QList<int> StringList2IntList(const QStringList &stringlist);
+QString IntList2String(const QList<int> &intlist);
+QList<int> String2IntList(const QString &str);
 QVariantList IntList2VariantList(const QList<int> &intlist);
 QList<int> VariantList2IntList(const QVariantList &variantlist);
 

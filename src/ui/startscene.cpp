@@ -177,6 +177,9 @@ void StartScene::printServerInfo()
     server_log->append(Config.EnableHegemony ?
         tr("Hegemony Mode is enabled") :
         tr("Hegemony Mode is disabled"));
+    server_log->append(Config.EnableTransform ?
+        tr("Transform Mode is enabled") :
+        tr("Transform Mode is disabled"));
 
     if (Config.EnableAI) {
         server_log->append(tr("This server is AI enabled, AI delay is %1 milliseconds").arg(Config.AIDelay));

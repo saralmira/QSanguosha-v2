@@ -787,6 +787,7 @@ function SmartAI:getValuableCardForGuanxing(cards)
 
 		local current_range = self.player:getAttackRange()
 		local nosuit_slash = sgs.Sanguosha:cloneCard("slash")
+		nosuit_slash:deleteLater()
 		local slash = self:getCard("Slash")
 
 		self:sort(self.enemies, "defense")
@@ -867,28 +868,29 @@ function SmartAI:getValuableCardForGuanxing(cards)
 		end
 	end
 	local hasTrick = false
+	
 	for _, card in ipairs(cards) do
 		for _, enemy in ipairs(new_enemies) do
-			if not enemy:isNude() and isCard("Snatch", card, self.player) and self:hasTrickEffective(sgs.Sanguosha:cloneCard("snatch", card:getSuit(), card:getNumber()), enemy) and self.player:distanceTo(enemy) == 1 then
+			if not enemy:isNude() and isCard("Snatch", card, self.player) and self:hasTrickEffectiveSafe("snatch", card, enemy) and self.player:distanceTo(enemy) == 1 then
 				snatch = card
 				hasTrick = true
-			elseif not enemy:isNude() and ((isCard("Dismantlement", card, self.player) and self:hasTrickEffective(sgs.Sanguosha:cloneCard("dismantlement", card:getSuit(), card:getNumber()), enemy))
+			elseif not enemy:isNude() and ((isCard("Dismantlement", card, self.player) and self:hasTrickEffectiveSafe("dismantlement", card, enemy))
 											or (card:isBlack() and self.player:hasSkill("yinling") and self.player:getPile("brocade"):length() < 4)) then
 				dismantlement = card
 				hasTrick = true
-			elseif isCard("Indulgence", card, self.player) and self:hasTrickEffective(sgs.Sanguosha:cloneCard("indulgence", card:getSuit(), card:getNumber()), enemy)
+			elseif isCard("Indulgence", card, self.player) and self:hasTrickEffectiveSafe("indulgence", card, enemy)
 				and not enemy:containsTrick("indulgence") and not self:willSkipPlayPhase(enemy) then
 				indulgence = card
 				hasTrick = true
-			elseif isCard("SupplyShortage", card, self.player) and self:hasTrickEffective(sgs.Sanguosha:cloneCard("supply_shortage", card:getSuit(), card:getNumber()), enemy)
+			elseif isCard("SupplyShortage", card, self.player) and self:hasTrickEffectiveSafe("supply_shortage", card, enemy)
 				and not enemy:containsTrick("supply_shortage") and not self:willSkipDrawPhase(enemy) then
 				supplyshortage = card
 				hasTrick = true
-			elseif isCard("Collateral", card, self.player) and self:hasTrickEffective(sgs.Sanguosha:cloneCard("collateral", card:getSuit(), card:getNumber()), enemy) and enemy:getWeapon() then
+			elseif isCard("Collateral", card, self.player) and self:hasTrickEffectiveSafe("collateral", card, enemy) and enemy:getWeapon() then
 				collateral = card
 				hasTrick = true
 			elseif isCard("Duel", card, self.player) and (self:getCardsNum("Slash") >= getCardsNum("Slash", enemy, self.player) or self.player:getHandcardNum() > 4)
-				and self:hasTrickEffective(sgs.Sanguosha:cloneCard("duel", card:getSuit(), card:getNumber()), enemy) then
+				and self:hasTrickEffectiveSafe("duel", card, enemy) then
 				duel = card
 				hasTrick = true
 			elseif card:isKindOf("AOE") then
@@ -898,7 +900,7 @@ function SmartAI:getValuableCardForGuanxing(cards)
 					aoe = card
 					hasTrick = true
 				end
-			elseif isCard("FireAttack", card, self.player) and self:hasTrickEffective(sgs.Sanguosha:cloneCard("fire_attack", card:getSuit(), card:getNumber()), enemy)
+			elseif isCard("FireAttack", card, self.player) and self:hasTrickEffectiveSafe("fire_attack", card, enemy)
 				and self:damageIsEffective(enemy, sgs.DamageStruct_Fire, self.player) then
 
 				local FFF
@@ -928,7 +930,7 @@ function SmartAI:getValuableCardForGuanxing(cards)
 						hasTrick = true
 					end
 				end
-			elseif isCard("GodSalvation", card, self.player) and self:willUseGodSalvation(sgs.Sanguosha:cloneCard("god_salvation", card:getSuit(), card:getNumber())) then
+			elseif isCard("GodSalvation", card, self.player) and self:willUseGodSalvationSafe(card) then
 				godsalvation = card
 				hasTrick = true
 			elseif card:isKindOf("Lightning") and self:willUseLightning(card) and self:getFinalRetrial() == 1 then
@@ -940,10 +942,10 @@ function SmartAI:getValuableCardForGuanxing(cards)
 	for _, card in ipairs(cards) do
 		for _, friend in ipairs(self.friends_noself) do
 			if self:willSkipPlayPhase(friend, true) or self:willSkipDrawPhase(friend, true) or self:needToThrowArmor(friend) then
-				if self:hasTrickEffective(sgs.Sanguosha:cloneCard("snatch", card:getSuit(), card:getNumber()), enemy) and isCard("Snatch", card, self.player) and self.player:distanceTo(friend) == 1 then
+				if self:hasTrickEffectiveSafe("snatch", card, enemy) and isCard("Snatch", card, self.player) and self.player:distanceTo(friend) == 1 then
 					snatch = card
 					hasTrick = true
-				elseif (isCard("Dismantlement", card, self.player) and self:hasTrickEffective(sgs.Sanguosha:cloneCard("dismantlement", card:getSuit(), card:getNumber()), enemy))
+				elseif (isCard("Dismantlement", card, self.player) and self:hasTrickEffectiveSafe("dismantlement", card, enemy))
 						or (card:isBlack() and self.player:hasSkill("yinling") and self.player:getPile("brocade"):length() < 4) then
 					dismantlement = card
 					hasTrick = true

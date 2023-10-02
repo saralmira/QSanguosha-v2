@@ -97,6 +97,15 @@ protected:
     virtual int getJushouDrawNum(ServerPlayer *caoren) const;
 };
 
+class QimouCard : public SkillCard
+{
+    Q_OBJECT
+
+public:
+    Q_INVOKABLE QimouCard();
+    void use(Room *room, ServerPlayer *source, QList<ServerPlayer *> &targets) const;
+};
+
 class WindPackage : public Package
 {
     Q_OBJECT

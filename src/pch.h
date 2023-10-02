@@ -20,7 +20,7 @@
 #include <QtDeclarative>
 #endif
 
-//#include <fmod.hpp>
+#include <fmod.hpp>
 
 #endif
 

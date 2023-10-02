@@ -187,7 +187,7 @@ public:
         return sd;
     }
 	
-    int getEffectIndex(const ServerPlayer *player, const Card *) const
+    int getEffectIndex(const ServerPlayer *, const Card *) const
     {
         return 1;
     }
@@ -755,7 +755,7 @@ bool BingyiCard::targetsFeasible(const QList<const Player *> &targets, const Pla
         else if (c->getColor() != color)
             return targets.isEmpty();
     }
-    return targets.length() <= Self->getHandcardNum();
+    return targets.length() > 0 && targets.length() <= Self->getHandcardNum();
 }
 
 bool BingyiCard::targetFilter(const QList<const Player *> &targets, const Player *, const Player *Self) const

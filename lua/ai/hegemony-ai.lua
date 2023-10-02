@@ -394,6 +394,7 @@ sgs.ai_skill_use["@@shuangren"] = function(self, prompt)
 	local max_point = max_card:getNumber()
 
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 	local dummy_use = { isDummy = true }
 	self.player:setFlags("slashNoDistanceLimit")
 	self:useBasicCard(slash, dummy_use)

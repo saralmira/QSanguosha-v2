@@ -7,6 +7,7 @@
 #include "client.h"
 #include "clientplayer.h"
 #include "package.h"
+#include "hulao.h"
 
 static QLayout *HLay(QWidget *left, QWidget *right)
 {
@@ -531,14 +532,14 @@ void GeneralOverview::on_tableWidget_itemSelectionChanged()
         connect(win_button, SIGNAL(clicked()), this, SLOT(playAudioEffect()));
     }
 
-    if (general_name == "shenlvbu1" || general_name == "shenlvbu2") {
-        QCommandLinkButton *stage_change_button = new QCommandLinkButton(tr("Stage Change"),
-            tr("Trashes, the real fun is just beginning!"));
+    if (general_name == "shenlvbu1" || general_name == "shenlvbu2" || HulaoPackage::contains(general_name)) {
+        QCommandLinkButton *stage_change_button = new QCommandLinkButton(tr("Stage Change"), Sanguosha->translate(QString("$%1_StageChange").arg(general_name.mid(0, general_name.length() - 1)))
+            /*tr("Trashes, the real fun is just beginning!")*/);
 
         button_layout->addWidget(stage_change_button);
         addCopyAction(stage_change_button);
 
-        stage_change_button->setObjectName("audio/system/stagechange.ogg");
+        stage_change_button->setObjectName(QString("audio/system/%1_stagechange.ogg").arg(general_name.mid(0, general_name.length() - 1)));
         connect(stage_change_button, SIGNAL(clicked()), this, SLOT(playAudioEffect()));
     }
 

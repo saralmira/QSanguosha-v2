@@ -542,7 +542,7 @@ public:
     {
         DamageStruct damage = data.value<DamageStruct>();
         ServerPlayer *target = damage.to;
-        if (damage.card && damage.card->isKindOf("Slash") && target->hasEquip()
+        if (damage.card && (damage.card->isKindOf("Slash") || damage.card->isKindOf("Duel")) && target->hasEquip()
             && !target->hasFlag("Global_DebutFlag") && !damage.chain && !damage.transfer) {
             QStringList equiplist;
             for (int i = 0; i < S_EQUIP_AREA_LENGTH; i++) {
@@ -835,7 +835,7 @@ HegemonyPackage::HegemonyPackage()
     tianfeng->addSkill(new Sijian);
     tianfeng->addSkill(new Suishi);
 
-    General *panfeng = new General(this, "panfeng", "qun", 4, true, true); // QUN 017
+    General *panfeng = new General(this, "panfeng", "qun", 5, true, true); // QUN 017
     panfeng->addSkill(new Kuangfu);
 
     General *zoushi = new General(this, "zoushi", "qun", 3, false); // QUN 018

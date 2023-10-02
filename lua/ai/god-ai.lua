@@ -584,7 +584,8 @@ sgs.ai_skill_use["@@qixing"] = function(self, prompt)
 	local piles = {}
 	local cards = self.player:getHandcards()
 	cards = sgs.QList2Table(cards)
-	local max_num = math.max(pile:length(), #cards)
+	--local max_num = math.max(pile:length(), #cards)
+	local min_num = math.min(pile:length(), #cards)
 	if pile:isEmpty() or (#cards == 0) then
 		return "."
 	end
@@ -595,7 +596,7 @@ sgs.ai_skill_use["@@qixing"] = function(self, prompt)
 	local exchange_to_handcard = {}
 	self:sortByCardNeed(cards)
 	self:sortByCardNeed(piles)
-	for i = 1 , max_num, 1 do
+	for i = 1 , min_num, 1 do
 		if self:cardNeed(piles[#piles]) > self:cardNeed(cards[1]) then
 			table.insert(exchange_to_handcard, piles[#piles])
 			table.insert(exchange_to_pile, cards[1])
@@ -621,6 +622,7 @@ sgs.ai_skill_use["@@qixing"] = function(self, prompt)
 
 	return "@QixingCard=" .. table.concat(exchange, "+")
 end
+
 
 sgs.ai_skill_use["@@kuangfeng"] = function(self,prompt)
 	local friendly_fire
@@ -825,6 +827,7 @@ sgs.ai_skill_use_func.WuqianCard = function(wuqiancard, use, self)
 				local dummy_use = { isDummy = true, isWuqian = true, to = sgs.SPlayerList() }
 				local duel = sgs.Sanguosha:cloneCard("duel", card:getSuit(), card:getNumber())
 				self:useCardDuel(duel, dummy_use)
+				duel:deleteLater()
 				if dummy_use.card and dummy_use.to:length() > 0 and (self:isWeak(dummy_use.to:first()) and dummy_use.to:first():getHp() == 1 or dummy_use.to:length() > 1) then
 					use.card = wuqiancard
 					if use.to then use.to:append(dummy_use.to:first()) end

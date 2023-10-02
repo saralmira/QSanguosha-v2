@@ -365,6 +365,7 @@ sgs.ai_skill_use_func.XiansiSlashCard = function(card, use, self)
 	local liufeng = self.room:findPlayerBySkillName("xiansi")
 	if not liufeng or liufeng:getPile("counter"):length() <= 1 or not self.player:canSlash(liufeng) then return "." end
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 
 	if self:slashIsAvailable() and not self:slashIsEffective(slash, liufeng, self.player) and self:isFriend(liufeng) then
 		sgs.ai_use_priority.XiansiSlashCard = 0.1
@@ -408,6 +409,7 @@ end
 
 sgs.ai_card_intention.XiansiSlashCard = function(self, card, from, tos)
 	local slash = sgs.Sanguosha:cloneCard("slash")
+	slash:deleteLater()
 	if not self:slashIsEffective(slash, tos[1], from) then
 		sgs.updateIntention(from, tos[1], -30)
 	else
@@ -605,6 +607,7 @@ sgs.ai_skill_choice.qiaoshui = function(self, choices, data)
 	elseif use.card:isKindOf("Snatch") or use.card:isKindOf("Dismantlement") then
 		local trick = sgs.Sanguosha:cloneCard(use.card:objectName(), use.card:getSuit(), use.card:getNumber())
 		trick:setSkillName("qiaoshui")
+		trick:deleteLater()
 		local dummy_use = { isDummy = true, to = sgs.SPlayerList(), current_targets = {} }
 		for _, p in sgs.qlist(use.to) do
 			table.insert(dummy_use.current_targets, p:objectName())
@@ -617,6 +620,7 @@ sgs.ai_skill_choice.qiaoshui = function(self, choices, data)
 	elseif use.card:isKindOf("Slash") then
 		local slash = sgs.Sanguosha:cloneCard(use.card:objectName(), use.card:getSuit(), use.card:getNumber())
 		slash:setSkillName("qiaoshui")
+		slash:deleteLater()
 		local dummy_use = { isDummy = true, to = sgs.SPlayerList(), current_targets = {} }
 		for _, p in sgs.qlist(use.to) do
 			table.insert(dummy_use.current_targets, p:objectName())
@@ -823,9 +827,9 @@ sgs.ai_skill_use_func.DanshouCard = function(card, use, self)
 					and not self:needToLoseHp(p, self.player) and ((self:isWeak(p) and p:getHp() < 3) or self:getOverflow() > 3)  then
 						target = p  break end
 				end
-			elseif times == 4 then
-				if self:isFriend(p) and p:isWounded() then
-					target = p  break end
+			--elseif times == 4 then
+			--	if self:isFriend(p) and p:isWounded() then
+			--		target = p  break end
 			end
 		end
 	end
